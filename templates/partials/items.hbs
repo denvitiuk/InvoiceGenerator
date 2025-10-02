@@ -1,0 +1,27 @@
+
+
+<h2>{{t "items"}}</h2>
+<table>
+  <thead>
+    <tr>
+      <th style="width:48%">{{t "description"}}</th>
+      <th class="right">{{t "qty"}}</th>
+      <th>{{t "unit"}}</th>
+      <th class="right">{{t "unitPrice"}}</th>
+      <th class="right">{{t "vat"}}</th>
+      <th class="right">{{t "lineTotal"}}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{#each itemRows}}
+      <tr>
+        <td>{{this.description}}</td>
+        <td class="right">{{this.qty}}</td>
+        <td>{{this.unit}}</td>
+        <td class="right">{{this.unitPrice}}</td>
+        <td class="right">{{this.vatRate}}</td>
+        <td class="right">{{this.total}}</td>
+      </tr>
+    {{/each}}
+  </tbody>
+</table>

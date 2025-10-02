@@ -1,0 +1,20 @@
+<table class="totals">
+  <tbody>
+    <tr>
+      <td>{{t "subtotal"}}</td>
+      <td class="right">{{subtotal}}</td>
+    </tr>
+    {{#if vatBlocks.length}}
+      {{#each vatBlocks}}
+        <tr>
+          <td>{{t "vat"}} {{this.rate}}</td>
+          <td class="right">{{this.amount}}</td>
+        </tr>
+      {{/each}}
+    {{/if}}
+    <tr>
+      <td><strong>{{t "total"}}</strong></td>
+      <td class="right"><strong>{{grandTotal}}</strong></td>
+    </tr>
+  </tbody>
+</table>

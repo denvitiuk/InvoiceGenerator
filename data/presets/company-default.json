@@ -1,0 +1,31 @@
+{
+  "language": "de",
+  "currency": "EUR",
+  "number": "",
+  "issueDateISO": "2025-10-01",
+  "dueDays": 14,
+  "reverseCharge": false,
+  "kleinunternehmer": false,
+  "notes": [],
+  "company": {
+    "name": "Your Company GmbH",
+    "addressLines": ["Straße 1", "10115 Berlin", "Deutschland"],
+    "email": "office@example.com",
+    "phone": "+49 30 000000",
+    "website": "example.com",
+    "ustId": "DE000000000",
+    "steuerNr": "",
+    "iban": "",
+    "bic": "",
+    "bankName": "",
+    "logoPath": ""
+  },
+  "client": {
+    "name": "Client GmbH",
+    "addressLines": ["Kundenweg 1", "10115 Berlin", "Deutschland"],
+    "ustId": ""
+  },
+  "items": [],
+  "extraTables": [],
+  "extraImages": []
+}

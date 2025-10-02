@@ -1,0 +1,41 @@
+{
+  "name": "invoicegener",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "dev": "tsx server/index.ts",
+    "server:dev": "tsx server/index.ts",
+    "build": "tsc",
+    "server:build": "tsc",
+    "start": "node dist/server/index.js",
+    "web:dev": "npm --prefix web run dev",
+    "web:build": "npm --prefix web run build",
+    "web:preview": "npm --prefix web run preview"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "archiver": "^7.0.1",
+    "cors": "^2.8.5",
+    "date-fns": "^4.1.0",
+    "express": "^5.1.0",
+    "handlebars": "^4.7.8",
+    "multer": "^2.0.2",
+    "playwright": "^1.55.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.21",
+    "@types/node": "^24.6.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.2"
+  },
+  "engines": {
+    "node": ">=18.18"
+  }
+}

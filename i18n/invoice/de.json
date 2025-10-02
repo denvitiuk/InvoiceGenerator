@@ -1,0 +1,27 @@
+
+
+{
+  "invoice": "Rechnung",
+  "from": "Von",
+  "to": "An",
+  "ustId": "USt-IdNr.",
+  "steuerNr": "Steuernummer",
+  "issueDate": "Rechnungsdatum",
+  "servicePeriod": "Leistungszeitraum",
+  "paymentTerms": "Zahlungsziel",
+  "bank": "Bank",
+  "items": "Positionen",
+  "description": "Beschreibung",
+  "qty": "Menge",
+  "unit": "Einheit",
+  "unitPrice": "EP (netto)",
+  "vat": "MwSt.",
+  "lineTotal": "Gesamt (netto)",
+  "subtotal": "Zwischensumme",
+  "total": "Gesamtsumme",
+  "notes": "Hinweise",
+  "attachments": "Anhänge",
+  "page": "Seite",
+  "rc_note": "Steuerschuldnerschaft des Leistungsempfängers (Reverse-Charge).",
+  "ku_note": "Gemäß §19 UStG wird keine Umsatzsteuer berechnet."
+}

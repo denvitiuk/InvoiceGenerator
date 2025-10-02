@@ -1,0 +1,144 @@
+
+
+<!doctype html>
+<html lang="{{language}}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{t "invoice"}} {{number}}</title>
+  {{!-- Если backend подставляет стили строкой -> встраиваем, иначе подключаем файл --}}
+  {{#if styles}}
+    <style>{{{styles}}}</style>
+  {{else}}
+    <link rel="stylesheet" href="/templates/styles.css" />
+  {{/if}}
+</head>
+<body>
+
+  {{#if watermark}}
+    <div class="watermark">{{watermark}}</div>
+  {{/if}}
+
+  <header class="header">
+    <div>
+      <h1>{{t "invoice"}} {{number}}</h1>
+      <div class="muted">{{company.name}}</div>
+    </div>
+    {{#if company.logoPath}}
+      <img class="logo" src="{{company.logoPath}}" alt="logo" />
+    {{/if}}
+  </header>
+
+  <section class="two-col">
+    <div class="col box">
+      <div class="label">{{t "from"}}</div>
+      <div class="value">{{company.name}}</div>
+      {{#each company.addressLines}}<div>{{this}}</div>{{/each}}
+      {{#if company.ustId}}<div>{{t "ustId"}}: {{company.ustId}}</div>{{/if}}
+      {{#if company.steuerNr}}<div>{{t "steuerNr"}}: {{company.steuerNr}}</div>{{/if}}
+      {{#if company.email}}<div>{{company.email}}</div>{{/if}}
+      {{#if company.phone}}<div>{{company.phone}}</div>{{/if}}
+      {{#if company.website}}<div>{{company.website}}</div>{{/if}}
+    </div>
+    <div class="col box">
+      <div class="label">{{t "to"}}</div>
+      <div class="value">{{client.name}}</div>
+      {{#each client.addressLines}}<div>{{this}}</div>{{/each}}
+      {{#if client.ustId}}<div>{{t "ustId"}}: {{client.ustId}}</div>{{/if}}
+    </div>
+  </section>
+
+  <section class="two-col" style="margin-top:12px;">
+    <div class="col box">
+      <div class="label">{{t "issueDate"}}</div>
+      <div>{{issueDate}}</div>
+      {{#if servicePeriod}}
+        <div class="label" style="margin-top:6px;">{{t "servicePeriod"}}</div>
+        <div>{{servicePeriod.from}} – {{servicePeriod.to}}</div>
+      {{/if}}
+    </div>
+    <div class="col box">
+      <div class="label">{{t "paymentTerms"}}</div>
+      <div>{{paymentTerms}}</div>
+      {{#if company.iban}}
+        <div style="margin-top:6px;">
+          <div><span class="label">IBAN:</span> {{company.iban}}</div>
+          {{#if company.bic}}<div><span class="label">BIC:</span> {{company.bic}}</div>{{/if}}
+          {{#if company.bankName}}<div><span class="label">{{t "bank"}}</span> {{company.bankName}}</div>{{/if}}
+        </div>
+      {{/if}}
+    </div>
+  </section>
+
+  <h2>{{t "items"}}</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:48%">{{t "description"}}</th>
+        <th class="right">{{t "qty"}}</th>
+        <th>{{t "unit"}}</th>
+        <th class="right">{{t "unitPrice"}}</th>
+        <th class="right">{{t "vat"}}</th>
+        <th class="right">{{t "lineTotal"}}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each itemRows}}
+        <tr>
+          <td>{{this.description}}</td>
+          <td class="right">{{this.qty}}</td>
+          <td>{{this.unit}}</td>
+          <td class="right">{{this.unitPrice}}</td>
+          <td class="right">{{this.vatRate}}</td>
+          <td class="right">{{this.total}}</td>
+        </tr>
+      {{/each}}
+    </tbody>
+  </table>
+
+  <table class="totals">
+    <tbody>
+      <tr><td>{{t "subtotal"}}</td><td class="right">{{subtotal}}</td></tr>
+      {{#each vatBlocks}}
+        <tr><td>{{t "vat"}} {{this.rate}}</td><td class="right">{{this.amount}}</td></tr>
+      {{/each}}
+      <tr><td><strong>{{t "total"}}</strong></td><td class="right"><strong>{{grandTotal}}</strong></td></tr>
+    </tbody>
+  </table>
+
+  {{#if notes.length}}
+    <h2>{{t "notes"}}</h2>
+    {{#each notes}}<div class="note">• {{this}}</div>{{/each}}
+  {{/if}}
+
+  {{#if extraTables.length}}
+    {{#each extraTables}}
+      <h2>{{this.title}}</h2>
+      <table>
+        <thead><tr>{{#each this.columns}}<th>{{this}}</th>{{/each}}</tr></thead>
+        <tbody>
+          {{#each this.rows}}
+            <tr>{{#each this}}<td>{{this}}</td>{{/each}}</tr>
+          {{/each}}
+        </tbody>
+      </table>
+    {{/each}}
+  {{/if}}
+
+  {{#if extraImages.length}}
+    <h2>{{t "attachments"}}</h2>
+    {{#each extraImages}}
+      <div class="extra-img">
+        <img src="{{this.src}}" style="max-width: {{this.maxWidthPx}}px; height:auto;" />
+        {{#if this.caption}}<div class="small muted">{{this.caption}}</div>{{/if}}
+      </div>
+    {{/each}}
+  {{/if}}
+
+  <footer class="footer">
+    <div>{{company.name}} · {{company.website}}</div>
+    <div>{{t "page"}} <span class="pageNumber"></span>/<span class="totalPages"></span></div>
+  </footer>
+
+</body>
+</html>

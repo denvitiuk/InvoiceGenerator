@@ -1,0 +1,29 @@
+{
+  "clients": [
+    {
+      "name": "Kunde GmbH",
+      "addressLines": ["Kundenweg 5", "20095 Hamburg", "Deutschland"],
+      "ustId": "DE123456789"
+    },
+    {
+      "name": "Acme Ltd.",
+      "addressLines": ["1 High Street", "SW1A 1AA London", "United Kingdom"],
+      "ustId": "GB123456789"
+    },
+    {
+      "name": "Бета ООД",
+      "addressLines": ["ул. Шипка 10", "1000 София", "България"],
+      "ustId": "BG123456789"
+    },
+    {
+      "name": "Anadolu Teknoloji A.Ş.",
+      "addressLines": ["Büyükdere Cd. 100", "34394 Şişli/İstanbul", "Türkiye"],
+      "ustId": "TR1234567890"
+    },
+    {
+      "name": "ООО «Пример»",
+      "addressLines": ["ул. Шевченко, 10", "Киев, Украина"],
+      "ustId": "UA1234567890"
+    }
+  ]
+}

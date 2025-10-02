@@ -1,0 +1,27 @@
+
+
+{
+  "invoice": "Счёт",
+  "from": "От",
+  "to": "Кому",
+  "ustId": "VAT ID",
+  "steuerNr": "Налоговый номер",
+  "issueDate": "Дата счёта",
+  "servicePeriod": "Период услуг",
+  "paymentTerms": "Условия оплаты",
+  "bank": "Банк",
+  "items": "Позиции",
+  "description": "Описание",
+  "qty": "Кол-во",
+  "unit": "Ед.",
+  "unitPrice": "Цена (нетто)",
+  "vat": "НДС",
+  "lineTotal": "Сумма (нетто)",
+  "subtotal": "Промежуточный итог",
+  "total": "Итого",
+  "notes": "Заметки",
+  "attachments": "Вложения",
+  "page": "Стр.",
+  "rc_note": "НДС оплачивается получателем (Reverse-Charge).",
+  "ku_note": "Согласно §19 UStG, НДС не начисляется."
+}

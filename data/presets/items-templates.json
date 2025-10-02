@@ -1,0 +1,40 @@
+{
+  "items": [
+    {
+      "label": "Development (hour)",
+      "template": { "description": "Software development", "qty": 1, "unit": "h", "unitPrice": 95, "vatRate": 19 }
+    },
+    {
+      "label": "Development (day)",
+      "template": { "description": "Software development (day rate)", "qty": 1, "unit": "day", "unitPrice": 720, "vatRate": 19 }
+    },
+    {
+      "label": "Design (package)",
+      "template": { "description": "Design package", "qty": 1, "unit": "package", "unitPrice": 800, "vatRate": 19 }
+    },
+    {
+      "label": "Consulting (hour)",
+      "template": { "description": "Consulting", "qty": 1, "unit": "h", "unitPrice": 120, "vatRate": 19 }
+    },
+    {
+      "label": "Maintenance (monthly)",
+      "template": { "description": "Maintenance & support (monthly)", "qty": 1, "unit": "month", "unitPrice": 300, "vatRate": 19 }
+    },
+    {
+      "label": "Hosting (monthly)",
+      "template": { "description": "Hosting (monthly)", "qty": 1, "unit": "month", "unitPrice": 25, "vatRate": 19 }
+    },
+    {
+      "label": "Travel expenses (no VAT)",
+      "template": { "description": "Travel expenses (no VAT)", "qty": 1, "unit": "item", "unitPrice": 100, "vatRate": 0 }
+    },
+    {
+      "label": "Training / Workshop (day)",
+      "template": { "description": "Training / Workshop (day)", "qty": 1, "unit": "day", "unitPrice": 950, "vatRate": 19 }
+    },
+    {
+      "label": "QA & Testing (hour)",
+      "template": { "description": "QA & testing", "qty": 1, "unit": "h", "unitPrice": 70, "vatRate": 19 }
+    }
+  ]
+}

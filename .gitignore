@@ -1,0 +1,44 @@
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Node / JS build
+node_modules/
+dist/
+out/
+build/
+coverage/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Env files
+.env
+.env.*.local
+
+# IDE files
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
+# System files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Compiled output
+*.log
+*.lock
+*.tmp
+*.temp
+*.swp
+
+# Invoice generator specific
+out/

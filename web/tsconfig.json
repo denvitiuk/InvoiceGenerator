@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "target": "ES2022",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "types": ["vite/client", "react", "react-dom"],
+    "paths": {
+      "@lib/*": ["lib/*"],
+      "@types/*": ["types/*"],
+      "@components/*": ["src/components/*"]
+    }
+  },
+  "include": ["src", "lib", "types"]
+}

@@ -1,0 +1,27 @@
+
+
+{
+  "invoice": "Fatura",
+  "from": "Satıcı",
+  "to": "Alıcı",
+  "ustId": "KDV No",
+  "steuerNr": "Vergi No.",
+  "issueDate": "Düzenleme tarihi",
+  "servicePeriod": "Hizmet dönemi",
+  "paymentTerms": "Ödeme şartları",
+  "bank": "Banka",
+  "items": "Kalemler",
+  "description": "Açıklama",
+  "qty": "Miktar",
+  "unit": "Birim",
+  "unitPrice": "Birim fiyat (net)",
+  "vat": "KDV",
+  "lineTotal": "Satır toplamı (net)",
+  "subtotal": "Ara toplam",
+  "total": "Toplam",
+  "notes": "Notlar",
+  "attachments": "Ekler",
+  "page": "Sayfa",
+  "rc_note": "KDV tersine yüklenir (Reverse-Charge).",
+  "ku_note": "§19 UStG uyarınca KDV hesaplanmaz."
+}

@@ -1,0 +1,10 @@
+{{!-- Document footer (hidden on print; Playwright adds its own footer for page numbers) --}}
+<footer class="footer">
+  <div>
+    {{company.name}}
+    {{#if company.website}} · {{company.website}}{{/if}}
+  </div>
+  <div>
+    {{t "page"}} <span class="pageNumber"></span>/<span class="totalPages"></span>
+  </div>
+</footer>

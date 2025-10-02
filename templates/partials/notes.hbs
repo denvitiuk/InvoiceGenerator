@@ -1,0 +1,8 @@
+{{#if notes.length}}
+  <h2>{{t "notes"}}</h2>
+  <ul class="notes-list">
+    {{#each notes}}
+      <li class="note">{{this}}</li>
+    {{/each}}
+  </ul>
+{{/if}}

@@ -1,0 +1,35 @@
+
+
+{{!-- === Extra sections: tables and images === --}}
+
+{{!-- Extra Tables --}}
+{{#if extraTables.length}}
+  {{#each extraTables}}
+    {{#if this.title}}<h2>{{this.title}}</h2>{{/if}}
+    <table>
+      <thead>
+        <tr>
+          {{#each this.columns}}<th>{{this}}</th>{{/each}}
+        </tr>
+      </thead>
+      <tbody>
+        {{#each this.rows}}
+          <tr>
+            {{#each this}}<td>{{this}}</td>{{/each}}
+          </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  {{/each}}
+{{/if}}
+
+{{!-- Extra Images --}}
+{{#if extraImages.length}}
+  <h2>{{t "attachments"}}</h2>
+  {{#each extraImages}}
+    <div class="extra-img">
+      <img src="{{this.src}}" style="max-width: {{this.maxWidthPx}}px; height:auto;" />
+      {{#if this.caption}}<div class="small muted">{{this.caption}}</div>{{/if}}
+    </div>
+  {{/each}}
+{{/if}}

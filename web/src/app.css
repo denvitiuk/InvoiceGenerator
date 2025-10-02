@@ -1,0 +1,85 @@
+
+
+/* === Base reset === */
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body { margin: 0; font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Arial,"Apple Color Emoji","Segoe UI Emoji"; background: var(--bg); color: var(--text); }
+
+:root{
+  --bg: #f6f7f9;
+  --panel: #ffffff;
+  --border: #e6e8ec;
+  --text: #121417;
+  --muted: #6b7280;
+  --primary: #2563eb;
+  --primary-700: #1d4ed8;
+  --primary-text: #ffffff;
+  --ring: rgba(37,99,235,0.35);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg: #0b0d12;
+    --panel: #12141a;
+    --border: #242935;
+    --text: #e5e7eb;
+    --muted: #9aa3b2;
+    --primary: #3b82f6;
+    --primary-700: #2563eb;
+    --primary-text: #0b0d12;
+    --ring: rgba(59,130,246,0.35);
+  }
+}
+
+/* === Panels & sections === */
+section { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+section + section { margin-top: 12px; }
+header h1 { font-size: 18px; font-weight: 700; margin: 0; }
+h3 { font-size: 13px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+
+/* === Controls === */
+input, select, textarea { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel); color: var(--text); outline: none; transition: border-color .15s ease, box-shadow .15s ease; }
+input::placeholder, textarea::placeholder { color: #9aa3b2; }
+textarea { resize: vertical; }
+
+input:focus, select:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 4px var(--ring); }
+
+/* Number inputs consistent */
+input[type=number] { -moz-appearance: textfield; }
+input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* === Buttons === */
+button { appearance: none; border: 1px solid var(--border); background: var(--panel); color: var(--text); border-radius: 10px; padding: 10px 14px; cursor: pointer; transition: transform .05s ease, box-shadow .2s ease, background .2s ease, border-color .2s ease; }
+button:hover { box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+button:active { transform: translateY(1px); }
+button:focus-visible { outline: none; box-shadow: 0 0 0 4px var(--ring); border-color: var(--primary); }
+
+/* Primary variant (auto when button has [data-variant="primary"]) */
+button[data-variant="primary"] { background: var(--primary); color: var(--primary-text); border-color: transparent; }
+button[data-variant="primary"]:hover { background: var(--primary-700); box-shadow: 0 6px 20px rgba(37,99,235,.25); }
+
+/* Inline labels */
+label { display: inline-flex; align-items: center; gap: 6px; }
+
+/* === Utility layout helpers === */
+.grid { display: grid; gap: 8px; }
+.row { display: flex; gap: 8px; align-items: center; }
+.right { text-align: right; }
+.muted { color: var(--muted); }
+
+/* === Preview overlay badges === */
+.badge { position: absolute; top: 8px; right: 8px; background: var(--panel); border: 1px solid var(--border); padding: 4px 8px; border-radius: 999px; font-size: 12px; color: var(--muted); }
+.error { position: absolute; top: 8px; left: 8px; background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; padding: 6px 8px; border-radius: 8px; font-size: 12px; }
+@media (prefers-color-scheme: dark){ .error{ background:#2a1313; color:#fecaca; border-color:#7f1d1d; } }
+
+/* === Smooth scrolling & subtle animations === */
+:root { scroll-behavior: smooth; }
+.fade-in { animation: fade-in .2s ease-out; }
+@keyframes fade-in { from{ opacity: 0; transform: translateY(2px);} to{ opacity: 1; transform: translateY(0);} }
+
+/* === Custom scrollbars (webkit) === */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: #c2c7d1; border-radius: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+@media (prefers-color-scheme: dark){
+  *::-webkit-scrollbar-thumb { background: #3a4252; }
+}
