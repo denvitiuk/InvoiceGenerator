@@ -49,5 +49,12 @@
   "success_saved": "Успешно запазено",
   "success_render": "PDF е готов",
   "success_render_all": "ZIP е готов",
-  "error_required": "Попълнете задължителните полета"
+  "error_required": "Попълнете задължителните полета",
+  "document_title": "Заглавие на документа",
+  "show_number_in_title": "Показвай номера в заглавието",
+  "filename": "Име на файл",
+  "download_last_data": "Изтегли последните данни",
+  "restore_last_data": "Възстанови последните данни",
+  "subtotal": "Междинна сума",
+  "total": "Общо"
 }

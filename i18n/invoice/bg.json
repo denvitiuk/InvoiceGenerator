@@ -1,15 +1,24 @@
-
-
 {
   "invoice": "Фактура",
+  "invoice_title": "Фактура",
+  "invoice_number": "Номер на фактура",
+  "issue_date": "Дата на издаване",
+
   "from": "От",
   "to": "До",
+  "service_from": "От",
+  "service_to": "До",
+
   "ustId": "ДДС №",
   "steuerNr": "Данъчен №",
   "issueDate": "Дата на издаване",
   "servicePeriod": "Период на услугата",
   "paymentTerms": "Условия за плащане",
+
   "bank": "Банка",
+  "iban": "IBAN",
+  "bic": "BIC",
+
   "items": "Позиции",
   "description": "Описание",
   "qty": "Количество",
@@ -19,9 +28,11 @@
   "lineTotal": "Сума (без ДДС)",
   "subtotal": "Междинна сума",
   "total": "Общо",
+
   "notes": "Бележки",
   "attachments": "Приложения",
   "page": "Страница",
+
   "rc_note": "ДДС се начислява по механизма за обратно начисляване.",
   "ku_note": "Съгласно §19 UStG не се начислява ДДС."
 }

@@ -49,5 +49,12 @@
   "success_saved": "Saved successfully",
   "success_render": "PDF generated",
   "success_render_all": "ZIP generated",
-  "error_required": "Please fill the required fields"
+  "error_required": "Please fill the required fields",
+  "document_title": "Document title",
+  "show_number_in_title": "Show number in title",
+  "filename": "Filename",
+  "download_last_data": "Download last data",
+  "restore_last_data": "Restore last data",
+  "subtotal": "Subtotal",
+  "total": "Total"
 }

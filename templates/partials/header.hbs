@@ -1,0 +1,16 @@
+<header class="header">
+    <div class="header-row">
+        <div class="title">
+            {{#if documentTitle}}{{documentTitle}}{{/if}}
+            {{#if showNumberInTitle}}{{#if number}} {{number}}{{/if}}{{/if}}
+        </div>
+        <div class="meta">
+            {{#if number}}<div>{{t "invoice_number"}}: {{number}}</div>{{/if}}
+            {{#if issueDateISO}}<div>{{t "issue_date"}}: {{formatDate issueDateISO}}</div>{{/if}}
+            {{#if servicePeriod}}
+                <div>{{t "service_from"}}: {{formatDate servicePeriod.fromISO}} — {{t "service_to"}}: {{formatDate servicePeriod.toISO}}</div>
+            {{/if}}
+        </div>
+    </div>
+</header>
+

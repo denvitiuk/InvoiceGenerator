@@ -49,5 +49,12 @@
   "success_saved": "Erfolgreich gespeichert",
   "success_render": "PDF erstellt",
   "success_render_all": "ZIP erstellt",
-  "error_required": "Bitte Pflichtfelder ausfüllen"
+  "error_required": "Bitte Pflichtfelder ausfüllen",
+  "document_title": "Dokumenttitel",
+  "show_number_in_title": "Nummer im Titel anzeigen",
+  "filename": "Dateiname",
+  "download_last_data": "Letzte Daten herunterladen",
+  "restore_last_data": "Letzte Daten übernehmen",
+  "subtotal": "Zwischensumme",
+  "total": "Gesamtsumme"
 }

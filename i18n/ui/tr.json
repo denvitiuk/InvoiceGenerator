@@ -49,5 +49,12 @@
   "success_saved": "Başarıyla kaydedildi",
   "success_render": "PDF oluşturuldu",
   "success_render_all": "ZIP oluşturuldu",
-  "error_required": "Zorunlu alanları doldurun"
+  "error_required": "Zorunlu alanları doldurun",
+  "document_title": "Belge başlığı",
+  "show_number_in_title": "Başlıkta numarayı göster",
+  "filename": "Dosya adı",
+  "download_last_data": "Son verileri indir",
+  "restore_last_data": "Son verileri geri yükle",
+  "subtotal": "Ara toplam",
+  "total": "Toplam"
 }

@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 import * as path from "node:path";
 import { renderInvoiceHtml } from "../lib/template.js";
-import { renderPdf } from "../lib/pdf.js";
+import { renderPdf, renderPdfBuffer } from "../lib/pdf.js";
 import { nextNumber } from "../lib/seq.js";
 import type { InvoiceData } from "../types/invoice.js";
 
@@ -64,6 +64,15 @@ export default function registerRender(app: Express) {
       const raw = (body.data ?? body) as Partial<InvoiceData>; // accept {data:{...}} or plain invoice JSON
       const language = (body.language ?? raw.language ?? "en") as any;
 
+      // Optional custom filename from client
+      const requestedNameRaw = (body.fileName ?? (raw as any)?.fileName ?? "").toString().trim();
+      const sanitizeBaseName = (s: string) => s
+        .replace(/\.[pP][dD][fF]$/g, "")   // drop .pdf if provided
+        .replace(/[\\\/:*?"<>|]+/g, "") // forbidden FS chars
+        .replace(/\s+/g, " ")              // collapse spaces
+        .trim();
+      const requestedBase = requestedNameRaw ? sanitizeBaseName(requestedNameRaw) : "";
+
       // Normalize input to avoid "Invalid time value" and other shape issues
       let data = normalizeInvoice(raw);
 
@@ -76,18 +85,23 @@ export default function registerRender(app: Express) {
       // Build HTML with inline styles for consistent PDF look
       const html = await renderInvoiceHtml({ ...data, language }, { inlineStyles: true });
 
-      // Output file path and name
-      const fname = `rechnung-${data.number}${language ? `-${language}` : ""}.pdf`;
-      const outPath = path.join(process.cwd(), "out", fname);
-
-      const abs = await renderPdf({ html, outPath });
-
-      // If ?download=1, stream file; otherwise return JSON with file path
+      // If ?download=1, stream PDF directly (no /out file)
       if (String(req.query.download ?? "0") === "1") {
-        res.download(abs, fname);
-      } else {
-        res.json({ ok: true, file: abs, name: fname, number: data.number, language: language ?? "de" });
+        const pdfBuf = await renderPdfBuffer({ html });
+        const defaultName = `rechnung-${data.number}${language ? `-${language}` : ""}.pdf`;
+        const fname = requestedBase ? `${requestedBase}.pdf` : defaultName;
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="${fname}"`);
+        res.setHeader("Content-Length", String(pdfBuf.byteLength));
+        return res.end(pdfBuf);
       }
+
+      // File-based fallback (kept for compatibility)
+      const defaultName = `rechnung-${data.number}${language ? `-${language}` : ""}.pdf`;
+      const fname = requestedBase ? `${requestedBase}.pdf` : defaultName;
+      const outPath = path.join(process.cwd(), "out", fname);
+      const abs = await renderPdf({ html, outPath });
+      res.json({ ok: true, file: abs, name: fname, number: data.number, language });
     } catch (e: any) {
       res.status(400).json({ error: e?.message ?? "Render error" });
     }

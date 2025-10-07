@@ -1,13 +1,14 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import {Currency, ExtraImage, ExtraTable, InvoiceData, Lang, LineItem} from "../../../server/types/invoice.js";
+import {Currency, ExtraImage, ExtraTable, InvoiceData, Lang, LineItem} from "../../../server/types/invoice";
+
 
 
 // ---- helpers ---------------------------------------------------------------
 const SUPPORTED: Lang[] = ["en", "de", "ru", "bg", "tr"];
 const clampLang = (v?: string): Lang => (SUPPORTED.includes(v as Lang) ? (v as Lang) : "en");
 
-const todayISO = () => new Date().toISOString();
+const todayISO = () => new Date().toISOString().slice(0, 10);
 
 export function makeEmptyInvoice(partial?: Partial<InvoiceData>): InvoiceData {
   return {

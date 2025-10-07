@@ -3,7 +3,7 @@ import { useI18n, useT } from "../lib/i18n";
 
 import { useStore } from "../lib/store";
 import { uploadFile } from "../lib/api";
-import type { Lang, InvoiceData } from "../../../server/types/invoice";
+import type { Lang } from "../../../server/types/invoice";
 
 const LANGS: Lang[] = ["en", "de", "ru", "bg", "tr"];
 
@@ -21,7 +21,6 @@ export default function Toolbar({ onPreview, onRenderPDF, onRenderAll, className
   const invoiceLang = useStore((s) => s.invoiceLang);
   const setInvoiceLang = useStore((s) => s.setInvoiceLang);
   const patchCompany = useStore((s) => s.patchCompany);
-  const invoice = useStore((s) => s.invoice as InvoiceData);
 
   // upload logo
   const [uploading, setUploading] = useState(false);
@@ -82,18 +81,10 @@ export default function Toolbar({ onPreview, onRenderPDF, onRenderAll, className
           <button onClick={onPreview}>{t("preview")}</button>
         )}
         {onRenderPDF && (
-          <button
-            onClick={() => (onRenderPDF as any)({ data: invoice, language: invoiceLang })}
-          >
-            {t("generate_pdf")}
-          </button>
+          <button onClick={onRenderPDF}>{t("generate_pdf")}</button>
         )}
         {onRenderAll && (
-          <button
-            onClick={() => (onRenderAll as any)({ data: invoice, all: true })}
-          >
-            {t("generate_all")}
-          </button>
+          <button onClick={onRenderAll}>{t("generate_all")}</button>
         )}
       </div>
     </div>

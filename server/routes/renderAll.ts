@@ -6,7 +6,7 @@ import * as fsp from "node:fs/promises";
 import archiver from "archiver";
 
 import { renderInvoiceHtml } from "../lib/template.js";
-import { renderPdf } from "../lib/pdf.js";
+import { renderPdf, renderPdfBuffer } from "../lib/pdf.js";
 import { nextNumber } from "../lib/seq.js";
 import { SUPPORTED_LANGS, resolveLang, type Lang } from "../lib/i18n.js";
 import type { InvoiceData } from "../types/invoice.js";
@@ -94,6 +94,40 @@ export default function registerRenderAll(app: Express) {
         data = { ...data, number };
       }
 
+      // If ?download=1, stream ZIP directly (no /out files)
+      if (String(req.query.download ?? "0") === "1") {
+        const requestedZipRaw = String(body.zipName ?? (raw as any)?.zipName ?? "").trim();
+        const sanitizeBaseName = (s: string) => s
+          .replace(/\.zip$/i, "")
+          .replace(/[\\\/:*?"<>|]+/g, "")
+          .replace(/\s+/g, " ")
+          .trim();
+        const requestedBase = requestedZipRaw ? sanitizeBaseName(requestedZipRaw) : "";
+        const zipName = requestedBase ? `${requestedBase}.zip` : `rechnung-${data.number}-bundle.zip`;
+
+        res.setHeader("Content-Type", "application/zip");
+        res.setHeader("Content-Disposition", `attachment; filename="${zipName}"`);
+
+        const archive = archiver("zip", { zlib: { level: 9 } });
+        archive.on("error", (err: any) => { try { res.destroy(err); } catch {} });
+        archive.pipe(res);
+
+        (async () => {
+          // Generate all PDFs in-memory, then append to archive
+          for (const lang of langs) {
+            const html = await renderInvoiceHtml(data, { inlineStyles: true, language: lang });
+            const pdfBuf = await renderPdfBuffer({ html });
+            const name = `rechnung-${data.number}-${lang}.pdf`;
+            archive.append(pdfBuf, { name });
+          }
+          await archive.finalize();
+        })().catch((e) => {
+          try { res.destroy(e); } catch {}
+        });
+
+        return; // response will finish when archive stream ends
+      }
+
       const outDir = path.join(process.cwd(), "out");
       await fsp.mkdir(outDir, { recursive: true });
 
@@ -107,8 +141,16 @@ export default function registerRenderAll(app: Express) {
         pdfs.push({ lang, name, path: abs });
       }
 
-      // Create ZIP
-      const zipName: string = body.zipName || `rechnung-${data.number}-bundle.zip`;
+      // Create ZIP (support optional custom zipName, sanitize, and add .zip)
+      const requestedZipRaw = String(body.zipName ?? (raw as any)?.zipName ?? "").trim();
+      const sanitizeBaseName = (s: string) => s
+        .replace(/\.zip$/i, "")              // drop .zip if provided
+        .replace(/[\\\/:*?"<>|]+/g, "")   // forbidden FS chars
+        .replace(/\s+/g, " ")               // collapse spaces
+        .trim();
+      const requestedBase = requestedZipRaw ? sanitizeBaseName(requestedZipRaw) : "";
+      const defaultZipName = `rechnung-${data.number}-bundle.zip`;
+      const zipName = requestedBase ? `${requestedBase}.zip` : defaultZipName;
       const zipPath = path.join(outDir, zipName);
 
       await new Promise<void>((resolve, reject) => {

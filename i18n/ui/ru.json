@@ -49,5 +49,12 @@
   "success_saved": "Сохранено",
   "success_render": "PDF готов",
   "success_render_all": "ZIP готов",
-  "error_required": "Заполните обязательные поля"
+  "error_required": "Заполните обязательные поля",
+  "document_title": "Заголовок документа",
+  "show_number_in_title": "Показывать номер в заголовке",
+  "filename": "Имя файла",
+  "download_last_data": "Скачать последние данные",
+  "restore_last_data": "Восстановить последние данные",
+  "subtotal": "Промежуточный итог",
+  "total": "Итого"
 }

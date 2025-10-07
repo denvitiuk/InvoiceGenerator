@@ -71,14 +71,17 @@ th { text-align: left; background: var(--surface); }
 .note { margin-top: 8px; color: #333; }
 .extra-img { margin-top: 8px; }
 
-/* Footer inside the document body — hide when printing, because Playwright adds real footer */
+/* Footer (company + bank). Visible in print; pagination row hidden in print. */
 .footer {
   font-size: 12px;
   color: var(--muted);
-  display: flex;
-  justify-content: space-between;
-  margin-top: 18px;
+  margin-top: 24px;
 }
+.footer .brand { font-weight: 600; color: var(--text); }
+.footer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.footer-col { display: grid; gap: 4px; }
+.footer-row.pagination { display: flex; justify-content: space-between; margin-top: 8px; }
+.iban { letter-spacing: 0.04em; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 
 /* Watermark */
 .watermark {
@@ -99,6 +102,7 @@ tfoot { display: table-footer-group; }
 
 tr, img, .box { break-inside: avoid; }
 h2, .header { break-after: avoid; }
+.footer, .footer-grid, .footer-col { break-inside: avoid; }
 
 /* Screen preview niceties (ignored by Playwright) */
 @media screen {
@@ -106,5 +110,5 @@ h2, .header { break-after: avoid; }
 }
 
 @media print {
-  .footer { display: none; }
+  .footer-row.pagination { display: none !important; }
 }

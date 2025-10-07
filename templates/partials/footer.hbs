@@ -1,10 +1,28 @@
-{{!-- Document footer (hidden on print; Playwright adds its own footer for page numbers) --}}
+{{!-- Document footer (HTML preview; Playwright prints its own footer for page numbers) --}}
 <footer class="footer">
-  <div>
-    {{company.name}}
-    {{#if company.website}} · {{company.website}}{{/if}}
+  <div class="footer-grid">
+    <div class="footer-col">
+      <div class="brand">{{company.name}}</div>
+      {{#each company.addressLines}}
+        <div>{{this}}</div>
+      {{/each}}
+      {{#if company.email}}<div>{{company.email}}</div>{{/if}}
+      {{#if company.phone}}<div>{{company.phone}}</div>{{/if}}
+      {{#if company.website}}<div>{{company.website}}</div>{{/if}}
+      {{#if company.steuerNr}}<div>Steuernummer: {{company.steuerNr}}</div>{{/if}}
+      {{#if company.ustId}}<div>USt-IdNr.: {{company.ustId}}</div>{{/if}}
+    </div>
+    <div class="footer-col">
+      {{#if company.bankName}}
+        <div class="muted" style="margin-bottom:4px;">Bank</div>
+        <div>{{company.bankName}}</div>
+      {{/if}}
+      {{#if company.iban}}<div>IBAN: <span class="iban">{{company.iban}}</span></div>{{/if}}
+      {{#if company.bic}}<div>BIC: {{company.bic}}</div>{{/if}}
+    </div>
   </div>
-  <div>
-    {{t "page"}} <span class="pageNumber"></span>/<span class="totalPages"></span>
+
+  <div class="footer-row pagination">
+    <span class="muted">{{t "page"}} <span class="pageNumber"></span>/<span class="totalPages"></span></span>
   </div>
 </footer>
