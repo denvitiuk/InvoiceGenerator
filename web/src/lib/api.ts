@@ -62,7 +62,7 @@ function filenameFromContentDisposition(v: string | null | undefined): string | 
       return decodeURIComponent(mStar[1]);
     } catch {}
   }
-  const m = /filename\s*=\s*"?([^"];]+)"?/i.exec(v);
+  const m = /filename\s*=\s*"?([^";]+)"?/i.exec(v);
   return m && m[1] ? m[1] : undefined;
 }
 

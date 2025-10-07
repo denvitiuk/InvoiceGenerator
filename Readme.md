@@ -35,7 +35,7 @@ yarn
 pnpm install
 
 # 3) Copy environment file and configure
-cp .env.example .env
+cp .env.production.example .env.production
 
 # 4) Run in development mode
 npm run dev
