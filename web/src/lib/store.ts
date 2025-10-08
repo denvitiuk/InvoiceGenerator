@@ -1,12 +1,16 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import {Currency, ExtraImage, ExtraTable, InvoiceData, Lang, LineItem} from "../../../server/types/invoice";
+import {Currency, ExtraImage, ExtraTable, InvoiceData, Lang, LineItem, NumberingMode} from "../../../server/types/invoice";
 
 
 
 // ---- helpers ---------------------------------------------------------------
-const SUPPORTED: Lang[] = ["en", "de", "ru", "bg", "tr"];
-const clampLang = (v?: string): Lang => (SUPPORTED.includes(v as Lang) ? (v as Lang) : "en");
+const SUPPORTED: Lang[] = ["en", "de", "ru", "bg", "tr", "uk"];
+const clampLang = (v?: string): Lang => {
+  const raw = (v || "").toLowerCase();
+  const norm = raw === "ua" ? "uk" : raw; // normalize legacy UA → UK
+  return SUPPORTED.includes(norm as Lang) ? (norm as Lang) : "en";
+};
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -18,6 +22,10 @@ export function makeEmptyInvoice(partial?: Partial<InvoiceData>): InvoiceData {
     issueDateISO: partial?.issueDateISO ?? todayISO(),
     servicePeriod: partial?.servicePeriod,
     dueDays: partial?.dueDays ?? 14,
+    documentTitle: partial?.documentTitle ?? "",
+    showNumberInTitle: partial?.showNumberInTitle ?? false,
+    fileName: partial?.fileName ?? "",
+    numberingMode: partial?.numberingMode ?? "auto",
     reverseCharge: partial?.reverseCharge ?? false,
     kleinunternehmer: partial?.kleinunternehmer ?? false,
     notes: partial?.notes ?? [],
@@ -57,6 +65,10 @@ export interface AppState {
   setIssueDate: (iso: string) => void;
   setDueDays: (days: number) => void;
   setNumber: (num: string) => void;
+  setNumberingMode: (mode: NumberingMode) => void;
+  setDocumentTitle: (title?: string) => void;
+  setShowNumberInTitle: (v: boolean) => void;
+  setFileName: (name?: string) => void;
   setNotes: (notes: string[]) => void;
   setWatermark: (text?: string) => void;
   setReverseCharge: (v: boolean) => void;
@@ -106,6 +118,10 @@ export const useStore = create<AppState>()(
       setIssueDate: (iso) => set({ invoice: { ...get().invoice, issueDateISO: iso }, dirty: true }),
       setDueDays: (days) => set({ invoice: { ...get().invoice, dueDays: Math.max(0, Math.floor(days)) }, dirty: true }),
       setNumber: (num) => set({ invoice: { ...get().invoice, number: num }, dirty: true }),
+      setNumberingMode: (mode) => set({ invoice: { ...get().invoice, numberingMode: mode }, dirty: true }),
+      setDocumentTitle: (title) => set({ invoice: { ...get().invoice, documentTitle: title || "" }, dirty: true }),
+      setShowNumberInTitle: (v) => set({ invoice: { ...get().invoice, showNumberInTitle: !!v }, dirty: true }),
+      setFileName: (name) => set({ invoice: { ...get().invoice, fileName: (name || "").trim() }, dirty: true }),
       setNotes: (notes) => set({ invoice: { ...get().invoice, notes: [...notes] }, dirty: true }),
       setWatermark: (text) => set({ invoice: { ...get().invoice, // watermark is not part of InvoiceData; store it in notes or separate UI state if needed
       }, dirty: true }),
@@ -180,7 +196,18 @@ export const useStore = create<AppState>()(
       storage: createJSONStorage(() => localStorage),
       // persist only essential parts
       partialize: (s) => ({ uiLang: s.uiLang, invoiceLang: s.invoiceLang, invoice: s.invoice }),
-      version: 1,
+      version: 2,
+      migrate: (persisted, prevVersion) => {
+        if (!persisted) return persisted as any;
+        const fix = (x: any) => (x === "ua" ? "uk" : x);
+        const p: any = { ...persisted };
+        if (p.uiLang) p.uiLang = fix(p.uiLang);
+        if (p.invoiceLang) p.invoiceLang = fix(p.invoiceLang);
+        if (p.invoice && typeof p.invoice === "object") {
+          p.invoice = { ...p.invoice, language: fix(p.invoice.language) };
+        }
+        return p;
+      },
     }
   )
 );

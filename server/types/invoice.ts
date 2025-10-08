@@ -3,9 +3,9 @@
 // Shared invoice types for the frontend (mirror of server/types/invoice.ts)
 // If you change these, keep server/types/invoice.ts in sync.
 
-export type Lang = "de" | "en" | "ru" | "bg" | "tr";
+export type Lang = "de" | "en" | "ru" | "bg" | "tr" | "uk";
 
-export type Currency = "EUR" | "USD" | "GBP";
+export type Currency = "EUR" | "USD" | "GBP" | "UAH";
 
 export interface CompanyInfo {
   name: string;
@@ -64,6 +64,10 @@ export interface InvoiceData {
 
   extraTables?: ExtraTable[];
   extraImages?: ExtraImage[];
+  documentTitle?: string;
+  showNumberInTitle?: boolean;
+  fileName?: string;
+  numberingMode?: "auto" | "manual";
 }
 
 // ===== API request/response helpers for web/lib/api.ts =====
@@ -109,3 +113,5 @@ export interface UploadResponse {
   size: number;
   mimetype: string;
 }
+
+export type NumberingMode = "auto" | "manual";

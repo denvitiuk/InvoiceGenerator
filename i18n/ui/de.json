@@ -56,5 +56,9 @@
   "download_last_data": "Letzte Daten herunterladen",
   "restore_last_data": "Letzte Daten übernehmen",
   "subtotal": "Zwischensumme",
-  "total": "Gesamtsumme"
+  "total": "Gesamtsumme",
+  "numbering_mode": "Nummerierung",
+  "numbering_auto": "Automatisch",
+  "numbering_manual": "Manuell",
+  "invoice_number": "Rechnungsnummer"
 }

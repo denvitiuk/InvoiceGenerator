@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 
-export type UILang = "en" | "de" | "ru" | "bg" | "tr";
-const SUPPORTED: UILang[] = ["en", "de", "ru", "bg", "tr"];
+export type UILang = "en" | "de" | "ru" | "bg" |  "tr" | "uk";
+const SUPPORTED: UILang[] = ["en", "de", "ru", "bg", "tr", "uk"];
 
 function clampLang(v?: string): UILang {
   const x = (v || "en").toLowerCase();

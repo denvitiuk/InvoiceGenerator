@@ -4,7 +4,7 @@ import "./app.css";
 import AppShell from "./components/AppShell";
 import { I18nProvider } from "./lib/i18n";
 
-const SUPPORTED = ["en", "de", "ru", "bg", "tr"] as const;
+const SUPPORTED = ["en", "de", "ru", "bg", "tr","uk"] as const;
 type Lang = typeof SUPPORTED[number];
 const UI_LANG_KEY = "ui.lang";
 

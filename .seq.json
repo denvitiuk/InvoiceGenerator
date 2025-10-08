@@ -1,3 +1,6 @@
 {
-  "2025-10": 1
+  "lastPrefix": "",
+  "counter": 0,
+  "pad": 4,
+  "pattern": "yyyy-MM"
 }

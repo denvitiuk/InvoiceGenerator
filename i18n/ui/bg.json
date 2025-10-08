@@ -56,5 +56,9 @@
   "download_last_data": "Изтегли последните данни",
   "restore_last_data": "Възстанови последните данни",
   "subtotal": "Междинна сума",
-  "total": "Общо"
+  "total": "Общо",
+  "numbering_mode": "Режим на номериране",
+  "numbering_auto": "Автоматично",
+  "numbering_manual": "Ръчно",
+  "invoice_number": "Номер на фактурата"
 }

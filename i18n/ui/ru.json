@@ -56,5 +56,9 @@
   "download_last_data": "Скачать последние данные",
   "restore_last_data": "Восстановить последние данные",
   "subtotal": "Промежуточный итог",
-  "total": "Итого"
+  "total": "Итого",
+  "numbering_mode": "Нумерация",
+  "numbering_auto": "Автоматически",
+  "numbering_manual": "Вручную",
+  "invoice_number": "Номер счёта"
 }

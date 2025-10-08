@@ -2,8 +2,8 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type Handlebars from "handlebars";
 
-export type Lang = "de" | "en" | "ru" | "bg" | "tr";
-export const SUPPORTED_LANGS: Lang[] = ["de", "en", "ru", "bg", "tr"];
+export type Lang = "de" | "en" | "ru" | "bg" | "tr" | "uk" ;
+export const SUPPORTED_LANGS: Lang[] = ["de", "en", "ru", "bg", "tr","uk"];
 export type Dict = Record<string, string>;
 
 const ROOT = process.cwd();
@@ -18,7 +18,9 @@ const cache = {
 };
 
 export function resolveLang(input?: string): Lang {
-  const x = (input || "").toLowerCase() as Lang;
+  const raw = (input || "").toLowerCase();
+  const norm = raw === "ua" ? "uk" : raw; // normalize legacy UA → UK
+  const x = norm as Lang;
   return SUPPORTED_LANGS.includes(x) ? x : "de";
 }
 

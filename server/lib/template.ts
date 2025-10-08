@@ -1,9 +1,10 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { pathToFileURL } from "node:url";
 import Handlebars from "handlebars";
 import { format } from "date-fns";
 import type { Locale } from "date-fns";
-import { de, enUS, ru, bg, tr } from "date-fns/locale";
+import { de, enUS, ru, bg, tr, uk } from "date-fns/locale";
 
 import { preloadInvoiceDicts, registerTHelper, resolveLang, type Lang } from "./i18n.js";
 import type { ExtraImage, InvoiceData, LineItem } from "../types/invoice.js";
@@ -16,6 +17,7 @@ const LOCALES: Record<Lang, Locale> = {
   ru,
   bg,
   tr,
+  uk,
 } as const;
 
 const ROOT = process.cwd();
@@ -32,19 +34,22 @@ function fmtMoney(n: number, currency: string, lang: Lang) {
     lang === "ru" ? "ru-RU" :
     lang === "bg" ? "bg-BG" :
     lang === "tr" ? "tr-TR" :
+    lang === "uk" ? "uk-UA" :
     "en-US";
   return new Intl.NumberFormat(locale, { style: "currency", currency }).format(n);
 }
 
 function toDisplayDate(iso: string, lang: Lang) {
+  if (!iso) return "";
   const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
   return format(d, "dd.MM.yyyy", { locale: LOCALES[lang] });
 }
 
 function fileUrl(p?: string) {
   if (!p) return undefined;
   const abs = path.resolve(p);
-  return new URL(`file://${abs}`).toString();
+  return pathToFileURL(abs).toString();
 }
 
 async function loadStylesInline(): Promise<string> {
@@ -111,11 +116,13 @@ export function calcModel(data: InvoiceData, lang: Lang) {
       : lang === "ru" ? `Оплатить в течение ${data.dueDays} дней`
       : lang === "bg" ? `Платимо в рамките на ${data.dueDays} дни`
       : lang === "tr" ? `${data.dueDays} gün içinde ödenir`
+      : lang === "uk" ? `До сплати протягом ${data.dueDays} днів`
       : `Payable within ${data.dueDays} days`)
     : (lang === "de" ? "Zahlbar sofort ohne Abzug"
       : lang === "ru" ? "К оплате немедленно"
       : lang === "bg" ? "Платимо веднага"
       : lang === "tr" ? "Fatura alındığında ödenir"
+      : lang === "uk" ? "До сплати після отримання"
       : "Due upon receipt");
 
   const notes = [...(data.notes ?? [])];

@@ -56,5 +56,9 @@
   "download_last_data": "Download last data",
   "restore_last_data": "Restore last data",
   "subtotal": "Subtotal",
-  "total": "Total"
+  "total": "Total",
+  "numbering_mode": "Numbering",
+  "numbering_auto": "Auto",
+  "numbering_manual": "Manual",
+  "invoice_number": "Invoice number"
 }

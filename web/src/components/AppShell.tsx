@@ -4,13 +4,13 @@ import { useI18n, useT } from "../lib/i18n";
 import { previewInvoice, renderInvoiceBlob, renderAllBlob, openInNewTab } from "../lib/api";
 
 import PreviewPane from "./PreviewPane";
-import {InvoiceData,Lang} from "../../../server/types/invoice";
+import {InvoiceData, Lang, NumberingMode} from "../../../server/types/invoice";
 
 
 
 
-const LANGS: Lang[] = ["en", "de", "ru", "bg", "tr"];
-const CURRENCIES = ["EUR", "USD", "GBP"] as const;
+const LANGS: Lang[] = ["en", "de", "ru", "bg", "tr","uk"];
+const CURRENCIES = ["EUR", "USD", "GBP", "UAH"] as const;
 const dbg = (...a: any[]) => console.log("[AppShell]", ...a);
 
 export default function AppShell() {
@@ -244,6 +244,28 @@ export default function AppShell() {
               onChange={(e) => patchInvoice({ documentTitle: e.target.value } as any)}
               placeholder="Invoice"
               style={{ width: "100%" }}
+            />
+          </div>
+          {/* Numbering mode and number controls */}
+          <div>
+            <label style={{ display: "block", fontSize: 12, opacity: 0.7 }}>{t("numbering_mode") || "Numbering mode"}</label>
+            <select
+              value={invoice.numberingMode ?? "auto"}
+              onChange={e => patchInvoice({ numberingMode: e.target.value as NumberingMode })}
+              style={{ width: "100%" }}
+            >
+              <option value="auto">{t("numbering_auto") || "Auto"}</option>
+              <option value="manual">{t("numbering_manual") || "Manual"}</option>
+            </select>
+          </div>
+          <div>
+            <label style={{ display: "block", fontSize: 12, opacity: 0.7 }}>{t("number") || "Number"}</label>
+            <input
+              value={invoice.number || ""}
+              onChange={e => patchInvoice({ number: e.target.value })}
+              placeholder={t("number") || "Number"}
+              style={{ width: "100%" }}
+              disabled={(invoice.numberingMode ?? "auto") === "auto"}
             />
           </div>
           <label style={{ display: "flex", alignItems: "center", gap: 8 }}>

@@ -56,5 +56,9 @@
   "download_last_data": "Son verileri indir",
   "restore_last_data": "Son verileri geri yükle",
   "subtotal": "Ara toplam",
-  "total": "Toplam"
+  "total": "Toplam",
+  "numbering_mode": "Numaralandırma",
+  "numbering_auto": "Otomatik",
+  "numbering_manual": "Manuel",
+  "invoice_number": "Fatura numarası"
 }

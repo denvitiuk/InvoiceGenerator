@@ -15,7 +15,8 @@ export interface SeqOptions {
     date?: Date;
 }
 
-const DEFAULT_FILE = ".seq.json";
+// Store sequence in a stable location relative to project root
+const DEFAULT_FILE = path.resolve(process.cwd(), "data/seq.json");
 const DEFAULT_SCOPE: Scope = "month";
 const DEFAULT_PAD = 4;
 
@@ -29,10 +30,17 @@ export function keyForDate(date: Date, scope: Scope): string {
 }
 
 async function readState(file: string): Promise<Record<string, number>> {
+    const full = path.resolve(file);
     try {
-        const raw = await fs.readFile(file, "utf-8");
+        const raw = await fs.readFile(full, "utf-8");
         return JSON.parse(raw) as Record<string, number>;
-    } catch {
+    } catch (err: any) {
+        // If the file is missing, create an empty one and return empty state
+        if (err && err.code === "ENOENT") {
+            await fs.mkdir(path.dirname(full), { recursive: true }).catch(() => {});
+            await fs.writeFile(full, "{}", "utf-8").catch(() => {});
+            return {};
+        }
         return {};
     }
 }
@@ -48,7 +56,8 @@ async function delay(ms: number) {
 
 /** Minimal file lock using an atomic create of a .lock file. */
 async function withLock<T>(file: string, fn: () => Promise<T>): Promise<T> {
-    const lock = `${file}.lock`;
+    const full = path.resolve(file);
+    const lock = `${full}.lock`;
     for (let i = 0; i < 50; i++) {
         try {
             const handle: any = await (fs as any).open(lock, "wx");
@@ -86,7 +95,7 @@ export function formatNumber(value: number, opts: SeqOptions = {}): string {
 }
 
 export async function nextNumber(opts: SeqOptions = {}) {
-    const file = opts.file ?? DEFAULT_FILE;
+    const file = path.resolve(opts.file ?? DEFAULT_FILE);
     const scope: Scope = opts.scope ?? DEFAULT_SCOPE;
     const date = opts.date ?? new Date();
     const key = keyForDate(date, scope);
@@ -102,7 +111,7 @@ export async function nextNumber(opts: SeqOptions = {}) {
 }
 
 export async function peek(opts: SeqOptions = {}) {
-    const file = opts.file ?? DEFAULT_FILE;
+    const file = path.resolve(opts.file ?? DEFAULT_FILE);
     const scope: Scope = opts.scope ?? DEFAULT_SCOPE;
     const date = opts.date ?? new Date();
     const key = keyForDate(date, scope);
@@ -111,7 +120,7 @@ export async function peek(opts: SeqOptions = {}) {
 }
 
 export async function setCurrent(value: number, opts: SeqOptions = {}) {
-    const file = opts.file ?? DEFAULT_FILE;
+    const file = path.resolve(opts.file ?? DEFAULT_FILE);
     const scope: Scope = opts.scope ?? DEFAULT_SCOPE;
     const date = opts.date ?? new Date();
     const key = keyForDate(date, scope);
@@ -126,7 +135,7 @@ export async function setCurrent(value: number, opts: SeqOptions = {}) {
 }
 
 export async function resetScope(opts: SeqOptions = {}) {
-    const file = opts.file ?? DEFAULT_FILE;
+    const file = path.resolve(opts.file ?? DEFAULT_FILE);
     const scope: Scope = opts.scope ?? DEFAULT_SCOPE;
     const date = opts.date ?? new Date();
     const key = keyForDate(date, scope);
