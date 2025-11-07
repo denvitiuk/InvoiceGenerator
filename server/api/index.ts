@@ -1,5 +1,3 @@
-
-
 import express, { type Express } from "express";
 import cors from "cors";
 import * as path from "node:path";
@@ -33,6 +31,16 @@ const ROOT = resolveProjectRoot();
 export function createApp(): Express {
   const app = express();
 
+  // Normalize base path when running behind Vercel function route (e.g. /api or /api/index)
+  app.use((req, _res, next) => {
+    const prefixes = ["/api/index", "/api"]; // try the more specific first
+    for (const p of prefixes) {
+      if (req.url === p) { req.url = "/"; break; }
+      if (req.url.startsWith(p + "/")) { req.url = req.url.slice(p.length); break; }
+    }
+    next();
+  });
+
   // Basic middlewares
   app.use(cors());
   app.use((req, res, next) => {
@@ -45,7 +53,7 @@ export function createApp(): Express {
   });
 
   app.use(express.json({ limit: "10mb" }));
-  app.use(express.urlencoded({ extended: true }));
+  app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
   // Static mounts (ok for serverless: read-only package files)
   app.use("/templates", express.static(path.join(ROOT, "templates")));
@@ -54,6 +62,7 @@ export function createApp(): Express {
 
   // Health check
   app.get("/health", (_req, res) => res.json({ ok: true }));
+  app.get("/", (_req, res) => res.type("html").send("<!doctype html><meta charset=\"utf-8\"><body>OK server/api</body>"));
 
   // API routes (same as standalone server)
   registerPreview(app);

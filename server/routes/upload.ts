@@ -4,11 +4,18 @@ import multer from "multer";
 import * as path from "node:path";
 import * as fs from "node:fs";
 
-const uploadDir = path.join(process.cwd(), "assets", "uploads");
+const uploadDir = (process.env.VERCEL
+  ? path.join(process.env.TMPDIR || "/tmp", "uploads") // ephemeral on Vercel
+  : path.join(process.cwd(), "assets", "uploads")      // local dev / self-host
+);
 
 // Ensure upload directory exists
 function ensureUploadDir() {
-  try { fs.mkdirSync(uploadDir, { recursive: true }); } catch {}
+  try {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  } catch (e) {
+    // ignore mkdir race conditions, but if truly impossible to write -> throw later on upload
+  }
 }
 
 // Allowed mime types (extend as needed)
@@ -43,6 +50,25 @@ const uploadMw = multer({
   },
 }).single("file");
 
+function buildFileResponse(f: any) {
+  // NOTE: on Vercel the file physically lives in /tmp, which is NOT public.
+  // Frontend can still take this path and immediately POST it back to /download later
+  // or embed as logoPath on invoice, etc. We just standardize what we return.
+
+  const safeName = typeof f.originalname === 'string' ? f.originalname : 'file';
+
+  return {
+    ok: true,
+    // We do NOT expose absolute FS path. We expose a logical path the app can remember.
+    // Caller can later send this back and we can stream it via /download.
+    storedPath: f.path, // absolute tmp path for now (server-only truth)
+    filename: f.filename,
+    originalName: safeName,
+    size: f.size,
+    mimetype: f.mimetype,
+  };
+}
+
 export default function registerUpload(app: Express) {
   app.post("/upload", (req: Request, res: Response) => {
     uploadMw(req, res, (err) => {
@@ -52,14 +78,16 @@ export default function registerUpload(app: Express) {
       const f = (req as any).file as any | undefined;
       if (!f) return res.status(400).json({ ok: false, error: "No file uploaded" });
 
-      const publicPath = `/assets/uploads/${f.filename}`;
-      return res.json({
-        ok: true,
-        path: publicPath,
-        name: f.originalname,
-        size: f.size,
-        mimetype: f.mimetype,
-      });
+      return res.json(buildFileResponse(f));
     });
+  });
+
+  // simple health/debug endpoints so we can confirm routing works on Vercel
+  app.get("/upload", (_req: Request, res: Response) => {
+    res.type("html").send("<!doctype html><meta charset=\"utf-8\"><body>OK /upload</body>");
+  });
+
+  app.get("/upload/health", (_req: Request, res: Response) => {
+    res.json({ ok: true, dir: uploadDir });
   });
 }

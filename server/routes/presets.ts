@@ -1,11 +1,11 @@
-
-
 import type { Express, Request, Response } from "express";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { InvoiceData } from "../types/invoice.js";
 
-const PRESETS_DIR = path.join(process.cwd(), "data", "presets");
+const PRESETS_DIR = process.env.PRESETS_DIR
+  ? path.resolve(process.env.PRESETS_DIR)
+  : path.join(process.env.VERCEL ? (process.env.TMPDIR || "/tmp") : process.cwd(), "data", "presets");
 const NAME_RE = /^[a-z0-9._-]{1,80}$/i; // safe file names
 
 async function ensureDir() {

@@ -1,11 +1,9 @@
-
-
 import type { Express, Request, Response } from "express";
 import { renderInvoiceHtml } from "../lib/template.js";
 import type { InvoiceData, Lang } from "../types/invoice.js";
 
 // Make preview resilient to half-empty/invalid payloads
-function normalizeInvoice(data: Partial<InvoiceData> | undefined): InvoiceData {
+export function normalizeInvoice(data: Partial<InvoiceData> | undefined): InvoiceData {
   const d = (data || {}) as Partial<InvoiceData>;
   const todayIso = new Date().toISOString().slice(0, 10);
 
@@ -56,18 +54,22 @@ function normalizeInvoice(data: Partial<InvoiceData> | undefined): InvoiceData {
   } as InvoiceData;
 }
 
+export async function buildPreviewHtml(input: any): Promise<string> {
+  const body = (input ?? {}) as any;
+  const raw = (body.data ?? body) as Partial<InvoiceData>; // accept either {data: {...}} or plain invoice JSON
+  const language = (body.language ?? (raw as any).language ?? "en") as Lang;
+  const data = normalizeInvoice(raw);
+  // Inline styles to make preview look exactly like final PDF
+  const html = await renderInvoiceHtml({ ...data, language }, { inlineStyles: true });
+  return html;
+}
+
 export default function registerPreview(app: Express) {
   // HTML preview of the invoice (no file is written)
   app.post("/preview", async (req: Request, res: Response) => {
     try {
       const body = (req.body ?? {}) as any;
-      const raw = (body.data ?? body) as Partial<InvoiceData>; // accept either {data: {...}} or plain invoice JSON
-      const language = (body.language ?? raw.language ?? "en") as Lang;
-
-      const data = normalizeInvoice(raw);
-
-      // Inline styles to make preview look exactly like final PDF
-      const html = await renderInvoiceHtml({ ...data, language }, { inlineStyles: true });
+      const html = await buildPreviewHtml(body);
       res.type("html").send(html);
     } catch (e: any) {
       // Do not 400 on preview — return minimal HTML so UI doesn't crash
@@ -76,6 +78,11 @@ export default function registerPreview(app: Express) {
         .type("html")
         .send(`<pre style="padding:12px;font-family:system-ui">Preview error: ${String(e?.message || e)}</pre>`);
     }
+  });
+
+  // Simple GET to quickly verify routing in browser
+  app.get("/preview", (_req: Request, res: Response) => {
+    res.type("html").send("<!doctype html><meta charset=\"utf-8\"><body>OK /preview</body>");
   });
 
   // Simple health/ready endpoint

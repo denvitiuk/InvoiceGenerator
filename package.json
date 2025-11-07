@@ -19,13 +19,15 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@sparticuz/chromium": "^141.0.0",
     "archiver": "^7.0.1",
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",
     "express": "^5.1.0",
     "handlebars": "^4.7.8",
     "multer": "^2.0.2",
-    "playwright": "^1.55.1"
+    "playwright": "^1.55.1",
+    "puppeteer-core": "^24.29.1"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
