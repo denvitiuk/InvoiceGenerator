@@ -7,8 +7,6 @@
     { "src": "/api(?:/.*)?", "dest": "/api/index.ts" },
     { "src": "/i18n/(.*)", "dest": "/api/index.ts" },
     { "src": "/(.*)", "dest": "/web/$1" }
-  ],
-  "functions": {
-    "api/**/*.ts": { "memory": 1024, "maxDuration": 20 }
-  }
+  ]
+
 }
