@@ -9,6 +9,6 @@
     { "src": "/(.*)", "dest": "/web/$1" }
   ],
   "functions": {
-    "api/**/*.ts": { "regions": ["fra1"], "memory": 1024, "maxDuration": 20 }
+    "api/**/*.ts": { "memory": 1024, "maxDuration": 20 }
   }
 }
