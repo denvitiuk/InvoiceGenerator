@@ -17,11 +17,15 @@ const cache = {
   ui: new Map<Lang, Dict>(),
 };
 
+const ALIASES: Record<string, Lang> = { ua: "uk" };
+
 export function resolveLang(input?: string): Lang {
-  const raw = (input || "").toLowerCase();
-  const norm = raw === "ua" ? "uk" : raw; // normalize legacy UA → UK
-  const x = norm as Lang;
-  return SUPPORTED_LANGS.includes(x) ? x : "de";
+  const raw = (input || "").toLowerCase().trim();
+  if (!raw) return "de";
+  // accept BCP-47 style tags like "de-DE", "ru_RU" → take base part
+  const base = (raw.split(/[-_]/, 1)[0] || raw);
+  const norm = (ALIASES[base] || base) as Lang | string;
+  return (SUPPORTED_LANGS as readonly string[]).includes(norm as string) ? (norm as Lang) : "de";
 }
 
 async function readJsonSafe<T = unknown>(fp: string): Promise<T | {}> {

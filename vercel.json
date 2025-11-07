@@ -4,6 +4,8 @@
     { "src": "api/index.ts", "use": "@vercel/node" }
   ],
   "routes": [
+    { "src": "/(preview|preview-pdf|render|render-all|download|upload)(?:/.*)?", "dest": "/api/index.ts" },
+    { "src": "/(templates|i18n|assets)/(.*)", "dest": "/api/index.ts" },
     { "src": "/api(?:/.*)?", "dest": "/api/index.ts" },
     { "src": "/(.*)", "dest": "/web/$1" }
   ]

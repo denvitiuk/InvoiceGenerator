@@ -1,6 +1,10 @@
-import { chromium, type Browser } from "playwright";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+
+// Runtime launcher: Playwright locally, Puppeteer+Sparticuz on Vercel
+const IS_VERCEL = !!process.env.VERCEL;
+// We keep lax types because we may return either a Playwright or Puppeteer browser
+type AnyBrowser = any;
 
 export interface PdfOptions {
   /** Raw HTML string to render */
@@ -30,10 +34,28 @@ export const DEFAULT_FOOTER = `
   </div>
 `;
 
-let sharedBrowser: Browser | null = null;
+let sharedBrowser: AnyBrowser | null = null;
 
-async function getBrowser(): Promise<Browser> {
-  if (sharedBrowser && sharedBrowser.isConnected()) return sharedBrowser;
+async function getBrowser(): Promise<AnyBrowser> {
+  if (sharedBrowser && (typeof sharedBrowser.isConnected !== 'function' || sharedBrowser.isConnected())) {
+    return sharedBrowser;
+  }
+
+  if (IS_VERCEL) {
+    const { default: chromium } = await import('@sparticuz/chromium');
+    const puppeteer = await import('puppeteer-core');
+    const executablePath = await (chromium as any).executablePath();
+    sharedBrowser = await (puppeteer as any).launch({
+      args: (chromium as any).args,
+      defaultViewport: (chromium as any).defaultViewport,
+      executablePath,
+      headless: (chromium as any).headless,
+    });
+    return sharedBrowser;
+  }
+
+  // Local dev: use Playwright (lighter setup, no need for system Chrome path)
+  const { chromium } = await import('playwright');
   sharedBrowser = await chromium.launch({ headless: true });
   return sharedBrowser;
 }
@@ -52,8 +74,16 @@ export async function renderPdf({
   const browser = await getBrowser();
   const page = await browser.newPage();
   try {
-    await page.setContent(html, { waitUntil: "networkidle" });
-    await page.emulateMedia({ media: "print" });
+    try {
+      await page.setContent(html, { waitUntil: 'networkidle' as any });
+    } catch {
+      await page.setContent(html);
+    }
+    if (typeof (page as any).emulateMedia === 'function') {
+      await (page as any).emulateMedia({ media: 'print' });
+    } else if (typeof (page as any).emulateMediaType === 'function') {
+      await (page as any).emulateMediaType('print');
+    }
     const absOut = path.resolve(outPath);
     await fs.mkdir(path.dirname(absOut), { recursive: true });
 
@@ -112,8 +142,16 @@ export async function renderPdfBuffer({
   const browser = await getBrowser();
   const page = await browser.newPage();
   try {
-    await page.setContent(html, { waitUntil: "networkidle" });
-    await page.emulateMedia({ media: "print" });
+    try {
+      await page.setContent(html, { waitUntil: 'networkidle' as any });
+    } catch {
+      await page.setContent(html);
+    }
+    if (typeof (page as any).emulateMedia === 'function') {
+      await (page as any).emulateMedia({ media: 'print' });
+    } else if (typeof (page as any).emulateMediaType === 'function') {
+      await (page as any).emulateMediaType('print');
+    }
 
     const buffer = await page.pdf({
       printBackground: true,

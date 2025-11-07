@@ -48,6 +48,8 @@ function toDisplayDate(iso: string, lang: Lang) {
 
 function fileUrl(p?: string) {
   if (!p) return undefined;
+  // If it's already a web URL or data-uri, just return as-is (Chromium can fetch it)
+  if (/^(https?:|data:)/i.test(p)) return p;
   const abs = path.resolve(p);
   return pathToFileURL(abs).toString();
 }

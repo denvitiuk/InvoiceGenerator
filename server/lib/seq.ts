@@ -15,8 +15,11 @@ export interface SeqOptions {
     date?: Date;
 }
 
-// Store sequence in a stable location relative to project root
-const DEFAULT_FILE = path.resolve(process.cwd(), "data/seq.json");
+// On Vercel, only /tmp is writable and it's ephemeral per invocation.
+// Locally, keep data under project-root/data/seq.json
+const DEFAULT_FILE = process.env.VERCEL
+  ? path.resolve(process.env.TMPDIR || "/tmp", "seq.json")
+  : path.resolve(process.cwd(), "data/seq.json");
 const DEFAULT_SCOPE: Scope = "month";
 const DEFAULT_PAD = 4;
 
