@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import {Currency, ExtraImage, ExtraTable, InvoiceData, Lang, LineItem, NumberingMode} from "../../../server/types/invoice";
+import {Lang} from "../../server/lib/i18n";
+import {Currency, ExtraImage, ExtraTable, InvoiceData, LineItem, NumberingMode} from "@/types/invoice";
+
 
 
 

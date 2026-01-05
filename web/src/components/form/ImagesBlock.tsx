@@ -4,7 +4,8 @@ import React, { useRef, useState } from "react";
 import { uploadFile } from "../../lib/api";
 import { useT } from "../../lib/i18n";
 import { useStore } from "../../lib/store";
-import {ExtraImage} from "../../../../server/types/invoice";
+import {ExtraImage} from "@/types/invoice";
+
 
 
 /**
@@ -24,11 +25,13 @@ export default function ImagesBlock() {
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
+
   function commit(next: ExtraImage[]) {
+
     if (typeof patchInvoice === "function") {
       // большинство сторах имеет сигнатуру patchInvoice(partial)
       try {
-        patchInvoice({ extraImages: next });
+        patchInvoice({extraImages: next});
         return;
       } catch (_) {
         // fallback: возможно сеттер принимает целый объект invoice

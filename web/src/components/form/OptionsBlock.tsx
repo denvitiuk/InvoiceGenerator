@@ -3,7 +3,8 @@
 import React from "react";
 import { useT } from "../../lib/i18n";
 import { useStore } from "../../lib/store";
-import {Currency, InvoiceData} from "../../../../server/types/invoice";
+import {Currency, InvoiceData} from "@/types/invoice";
+
 
 
 /**

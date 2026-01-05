@@ -3,7 +3,9 @@
 import React, { useEffect, useState } from "react";
 
 import { previewInvoice } from "../lib/api";
-import {InvoiceData, Lang} from "../../../server/types/invoice";
+import {InvoiceData} from "@/types/invoice";
+import {Lang} from "../../server/lib/i18n";
+
 
 export interface PreviewPaneProps {
   invoice: InvoiceData;

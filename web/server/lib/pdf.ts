@@ -1,8 +1,26 @@
 import * as fs from "node:fs/promises";
+import * as fsSync from "node:fs";
 import * as path from "node:path";
 
-// Runtime launcher: Playwright locally, Puppeteer+Sparticuz on Vercel
-const IS_VERCEL = !!process.env.VERCEL;
+// Runtime launcher:
+// - Vercel Linux (serverless): Puppeteer + @sparticuz/chromium
+// - Local dev (macOS/Windows/Linux): Playwright
+//
+// NOTE: `process.env.VERCEL` can sometimes be set locally by tooling.
+// To avoid `spawn Unknown system error -8` on macOS/Windows, we only enable
+// Sparticuz when running on Linux.
+const VERCEL_RAW = String(process.env.VERCEL || "").toLowerCase();
+const IS_VERCEL = VERCEL_RAW === "1" || VERCEL_RAW === "true";
+const IS_LINUX = process.platform === "linux";
+const IS_DARWIN = process.platform === "darwin";
+const PDF_DEBUG = ["1", "true", "yes"].includes(String(process.env.PDF_DEBUG || "").toLowerCase());
+
+// Optional override for debugging:
+//   PDF_ENGINE=playwright  -> force Playwright everywhere
+//   PDF_ENGINE=puppeteer   -> force Puppeteer (requires Linux-compatible chromium)
+const PDF_ENGINE = String(process.env.PDF_ENGINE || "").toLowerCase();
+const USE_SPARTICUZ = (PDF_ENGINE ? PDF_ENGINE === "puppeteer" : IS_VERCEL) && IS_LINUX;
+
 // We keep lax types because we may return either a Playwright or Puppeteer browser
 type AnyBrowser = any;
 
@@ -41,23 +59,77 @@ async function getBrowser(): Promise<AnyBrowser> {
     return sharedBrowser;
   }
 
-  if (IS_VERCEL) {
-    const { default: chromium } = await import('@sparticuz/chromium');
-    const puppeteer = await import('puppeteer-core');
+  if (USE_SPARTICUZ) {
+    const { default: chromium } = await import("@sparticuz/chromium");
+    const puppeteer = await import("puppeteer-core");
+
     const executablePath = await (chromium as any).executablePath();
+
     sharedBrowser = await (puppeteer as any).launch({
       args: (chromium as any).args,
-      defaultViewport: (chromium as any).defaultViewport,
       executablePath,
-      headless: (chromium as any).headless,
+      headless: true,
     });
+
     return sharedBrowser;
   }
 
-  // Local dev: use Playwright (lighter setup, no need for system Chrome path)
-  const { chromium } = await import('playwright');
-  sharedBrowser = await chromium.launch({ headless: true });
-  return sharedBrowser;
+  // Local dev (and non-Linux runtimes): prefer system Chrome via puppeteer-core.
+  // This avoids many macOS spawn issues (e.g. -8) caused by incompatible bundled browsers.
+  const puppeteer = await import("puppeteer-core");
+
+  if (PDF_DEBUG) {
+    console.log(
+      `[pdf] USE_SPARTICUZ=${USE_SPARTICUZ} platform=${process.platform} arch=${process.arch} engine=${PDF_ENGINE || "auto"}`
+    );
+  }
+
+  // Try system Chrome paths
+  const macChrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+  const winChrome1 = "C:/Program Files/Google/Chrome/Application/chrome.exe";
+  const winChrome2 = "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe";
+
+  const sysExec =
+    (IS_DARWIN && fsSync.existsSync(macChrome) && macChrome) ||
+    (process.platform === "win32" && fsSync.existsSync(winChrome1) && winChrome1) ||
+    (process.platform === "win32" && fsSync.existsSync(winChrome2) && winChrome2) ||
+    "";
+
+  if (sysExec) {
+    try {
+      // On macOS/Windows we don't need no-sandbox flags and they sometimes cause issues.
+      const args = IS_LINUX ? ["--no-sandbox", "--disable-setuid-sandbox"] : [];
+
+      sharedBrowser = await (puppeteer as any).launch({
+        executablePath: sysExec,
+        headless: true,
+        args,
+      });
+      return sharedBrowser;
+    } catch (e) {
+      if (PDF_DEBUG) console.log("[pdf] Failed to launch system Chrome via puppeteer-core, falling back...", e);
+    }
+  } else {
+    if (PDF_DEBUG) console.log("[pdf] System Chrome not found at expected paths; falling back to Playwright");
+  }
+
+  // Fallback: Playwright (requires `npx playwright install chromium` once)
+  const { chromium } = await import("playwright");
+  try {
+    sharedBrowser = await chromium.launch({ headless: true });
+    return sharedBrowser;
+  } catch (e: any) {
+    const msg = String(e?.message || e);
+    if (msg.includes("Unknown system error -8") || msg.includes("error -8")) {
+      throw new Error(
+        "Failed to launch Chromium locally (spawn -8). " +
+          "Install Google Chrome (recommended) or run: `cd web && npx playwright install chromium`, " +
+          "then restart `npm run dev`. Original error: " +
+          msg
+      );
+    }
+    throw e;
+  }
 }
 
 export async function renderPdf({
@@ -75,9 +147,13 @@ export async function renderPdf({
   const page = await browser.newPage();
   try {
     try {
-      await page.setContent(html, { waitUntil: 'networkidle' as any });
+      await page.setContent(html, { waitUntil: "networkidle0" as any });
     } catch {
-      await page.setContent(html);
+      try {
+        await page.setContent(html, { waitUntil: "networkidle" as any });
+      } catch {
+        await page.setContent(html);
+      }
     }
     if (typeof (page as any).emulateMedia === 'function') {
       await (page as any).emulateMedia({ media: 'print' });
@@ -143,9 +219,13 @@ export async function renderPdfBuffer({
   const page = await browser.newPage();
   try {
     try {
-      await page.setContent(html, { waitUntil: 'networkidle' as any });
+      await page.setContent(html, { waitUntil: "networkidle0" as any });
     } catch {
-      await page.setContent(html);
+      try {
+        await page.setContent(html, { waitUntil: "networkidle" as any });
+      } catch {
+        await page.setContent(html);
+      }
     }
     if (typeof (page as any).emulateMedia === 'function') {
       await (page as any).emulateMedia({ media: 'print' });

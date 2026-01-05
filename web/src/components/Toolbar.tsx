@@ -4,7 +4,9 @@ import type { UILang } from "../lib/i18n";
 
 import { useStore } from "../lib/store";
 import { uploadFile } from "../lib/api";
-import type { Lang, NumberingMode } from "../../../server/types/invoice";
+import {Lang} from "../../server/lib/i18n";
+import {NumberingMode} from "@/types/invoice";
+
 
 const LANGS: Lang[] = ["en", "de", "ru", "bg", "uk" , "tr"];
 

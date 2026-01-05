@@ -6,8 +6,9 @@ import { format } from "date-fns";
 import type { Locale } from "date-fns";
 import { de, enUS, ru, bg, tr, uk } from "date-fns/locale";
 
-import { preloadInvoiceDicts, registerTHelper, resolveLang, type Lang } from "./i18n.js";
-import type { ExtraImage, InvoiceData, LineItem } from "../types/invoice.js";
+import { preloadInvoiceDicts, registerTHelper, resolveLang, type Lang } from "./i18n";
+import {ExtraImage, InvoiceData, LineItem} from "@/types/invoice";
+
 
 const hbs = Handlebars.create();
 

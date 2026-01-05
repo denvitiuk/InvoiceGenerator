@@ -7,7 +7,7 @@
 # Node / JS build
 node_modules/
 dist/
-out/
+web/public/out/
 build/
 coverage/
 
@@ -41,4 +41,4 @@ Desktop.ini
 *.swp
 
 # Invoice generator specific
-out/
+web/public/out/

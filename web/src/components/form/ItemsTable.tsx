@@ -3,7 +3,8 @@
 import React from "react";
 import { useT } from "../../lib/i18n";
 import { useStore } from "../../lib/store";
-import {LineItem} from "../../../../server/types/invoice";
+import {LineItem} from "@/types/invoice";
+
 
 function r2(n: number) {
   return Math.round((n + Number.EPSILON) * 100) / 100;

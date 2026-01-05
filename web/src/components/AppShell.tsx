@@ -4,7 +4,10 @@ import { useI18n, useT } from "../lib/i18n";
 import { previewInvoice, renderInvoiceBlob, renderAllBlob, openInNewTab } from "../lib/api";
 
 import PreviewPane from "./PreviewPane";
-import {InvoiceData, Lang, NumberingMode} from "../../../server/types/invoice";
+import {Lang} from "../../server/lib/i18n";
+import {InvoiceData, NumberingMode} from "@/types/invoice";
+
+
 
 
 

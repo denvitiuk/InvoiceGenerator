@@ -1,29 +1,27 @@
-// Frontend API helpers — talk to the backend via HTTP.
-// In dev, Vite proxy should forward to :3001, but we also add a fallback
-// directly to http://localhost:3001 to survive proxy misconfig.
+// Frontend API helpers — talk to the backend via Next.js API routes.
+// We intentionally use same-origin `/api/*` endpoints (no separate Express server).
 
-import type {
-  InvoiceData,
-  Lang,
-  RenderAllResponse,
-  RenderResponse,
-  UploadResponse,
-} from "../../../server/types/invoice";
 
-const DEV_BACKEND = "http://localhost:3001";
-const API_BASE: string = ((import.meta as any)?.env?.VITE_API_BASE ?? "").trim(); // leave empty to use Vite proxy
-const IS_LOCALHOST = typeof window !== "undefined" && /^(localhost|127\.0\.0\.1|::1)$/.test(window.location.hostname);
+import {InvoiceData, RenderAllResponse, RenderResponse, UploadResponse} from "@/types/invoice";
+
+export type Lang = "en" | "de" | "ru" | "bg" | "tr" | "uk";
+
+// Optional override (useful for self-hosting behind a different domain).
+// In Next, only NEXT_PUBLIC_* is exposed to the browser.
+const API_BASE: string = (process.env.NEXT_PUBLIC_API_BASE || "").trim();
+
+function normalizeApiPath(p: string): string {
+  const path = p.startsWith("/") ? p : `/${p}`;
+  // If caller already passed /api/..., keep it.
+  if (path.startsWith("/api/")) return path;
+  // Otherwise rewrite old legacy endpoints (/render, /preview, ...) to /api/...
+  return `/api${path}`;
+}
 
 function buildCandidates(path: string): string[] {
-  const candidates: string[] = [];
-  // 1) If API_BASE provided — use it. Otherwise, relative path (Vite proxy).
-  candidates.push(API_BASE ? API_BASE + path : path);
-  // 2) Dev fallback straight to backend (only on localhost to avoid hitting user's machine in prod)
-  if (IS_LOCALHOST) {
-    const fallback = DEV_BACKEND + path;
-    if (!candidates.includes(fallback)) candidates.push(fallback);
-  }
-  return candidates;
+  const p = normalizeApiPath(path);
+  // 1) If API_BASE provided — use it. Otherwise, same-origin relative path.
+  return [API_BASE ? API_BASE + p : p];
 }
 
 async function apiFetch(path: string, init: RequestInit): Promise<Response> {

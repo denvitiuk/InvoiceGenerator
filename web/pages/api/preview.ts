@@ -1,6 +1,6 @@
-import type { Express, Request, Response } from "express";
-import { renderInvoiceHtml } from "../lib/template.js";
-import type { InvoiceData, Lang } from "../types/invoice.js";
+import type { NextApiRequest, NextApiResponse } from "next";
+import { renderInvoiceHtml } from "../../server/lib/template";
+import {InvoiceData, Lang} from "@/types/invoice";
 
 // Make preview resilient to half-empty/invalid payloads
 export function normalizeInvoice(data: Partial<InvoiceData> | undefined): InvoiceData {
@@ -74,7 +74,7 @@ export function normalizeInvoice(data: Partial<InvoiceData> | undefined): Invoic
         ? (d.items as any)
         : [{ description: "", qty: 1, unit: "", unitPrice: 0, vatRate: 0 }],
 
-    extraTables: d.extraTables || [],
+    extraTables: (d as any).extraTables || [],
     extraImages: d.extraImages || [],
   } as InvoiceData;
 }
@@ -89,31 +89,37 @@ export async function buildPreviewHtml(input: any): Promise<string> {
   return html;
 }
 
-export default function registerPreview(app: Express) {
-  // HTML preview of the invoice (no file is written)
-  app.post("/preview", async (req: Request, res: Response) => {
-    try {
-      const body = (req.body ?? {}) as any;
-      const html = await buildPreviewHtml(body);
-      res.type("html").send(html);
-    } catch (e: any) {
-      // Do not 400 on preview — return minimal HTML so UI doesn't crash
-      res
-        .status(200)
-        .type("html")
-        .send(
-          `<pre style="padding:12px;font-family:system-ui">Preview error: ${String(e?.message || e)}</pre>`,
-        );
-    }
-  });
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: "10mb",
+    },
+  },
+};
 
-  // Simple GET to quickly verify routing in browser
-  app.get("/preview", (_req: Request, res: Response) => {
-    res.type("html").send("<!doctype html><meta charset=\"utf-8\"><body>OK /preview</body>");
-  });
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method === "OPTIONS") return res.status(200).end();
 
-  // Simple health/ready endpoint
-  app.get("/preview/health", (_req: Request, res: Response) => {
-    res.json({ ok: true });
-  });
+  if (req.method === "GET") {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    return res.status(200).send("<!doctype html><meta charset=\"utf-8\"><body>OK /api/preview</body>");
+  }
+
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "GET,POST,OPTIONS");
+    return res.status(405).json({ ok: false, error: "Method not allowed" });
+  }
+
+  try {
+    const body = (req.body ?? {}) as any;
+    const html = await buildPreviewHtml(body);
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    return res.status(200).send(html);
+  } catch (e: any) {
+    // Do not 400 on preview — return minimal HTML so UI doesn't crash
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    return res
+      .status(200)
+      .send(`<pre style=\"padding:12px;font-family:system-ui\">Preview error: ${String(e?.message || e)}</pre>`);
+  }
 }

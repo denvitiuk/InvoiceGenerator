@@ -1,7 +1,7 @@
 import React from "react";
 import { useT } from "../../lib/i18n";
 import { useStore } from "../../lib/store";
-import {ExtraTable} from "../../../../server/types/invoice";
+import {ExtraTable} from "@/types/invoice";
 
 
 /**
@@ -13,9 +13,15 @@ export default function ExtraTables() {
   const tables = useStore((s: any) => (s.invoice?.extraTables as ExtraTable[] | undefined) || []);
   const patchInvoice = useStore((s: any) => s.patchInvoice || s.setInvoice);
 
+
   function commit(next: ExtraTable[]) {
+
     if (typeof patchInvoice === "function") {
-      try { patchInvoice({ extraTables: next }); return; } catch {}
+      try {
+        patchInvoice({extraTables: next});
+        return;
+      } catch {
+      }
     }
     console.warn("ExtraTables: please wire patchInvoice({ extraTables }) in the store");
   }
