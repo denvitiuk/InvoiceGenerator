@@ -12,8 +12,18 @@ const API_BASE: string = (process.env.NEXT_PUBLIC_API_BASE || "").trim();
 
 function normalizeApiPath(p: string): string {
   const path = p.startsWith("/") ? p : `/${p}`;
+
   // If caller already passed /api/..., keep it.
-  if (path.startsWith("/api/")) return path;
+  if (path.startsWith("/api/")) {
+    // Special-case: some legacy code may call `/api/render-all`.
+    if (path === "/api/render-all" || path.startsWith("/api/render-all?")) return "/api/renderAll";
+    return path;
+  }
+
+  // Special-case: legacy endpoint used by the UI: `/render-all`.
+  // Our Next API file is `pages/api/renderAll.ts` (camelCase), so the runtime route is `/api/renderAll`.
+  if (path === "/render-all" || path.startsWith("/render-all?")) return "/api/renderAll";
+
   // Otherwise rewrite old legacy endpoints (/render, /preview, ...) to /api/...
   return `/api${path}`;
 }
@@ -116,7 +126,7 @@ export async function renderAll(
   opts?: { languages?: Lang[]; all?: boolean; zipName?: string }
 ): Promise<RenderAllResponse> {
   const { languages, all, zipName } = opts || {};
-  return postJson<RenderAllResponse>("/render-all", { data, languages, all, zipName }, "json");
+  return postJson<RenderAllResponse>("/api/renderAll", { data, languages, all, zipName }, "json");
 }
 
 export async function renderAllBlob(
@@ -124,7 +134,7 @@ export async function renderAllBlob(
   opts?: { languages?: Lang[]; all?: boolean; zipName?: string }
 ): Promise<{ blob: Blob; filename: string }> {
   const { languages, all, zipName } = opts || {};
-  const { blob, filename } = await postBlob(`/render-all?download=1`, { data, languages, all, zipName });
+  const { blob, filename } = await postBlob(`/api/renderAll?download=1`, { data, languages, all, zipName });
   const fallback = `rechnung-${data.number}-bundle.zip`;
   return {
     blob,
