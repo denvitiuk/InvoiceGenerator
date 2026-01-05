@@ -1,5 +1,3 @@
-
-
 <!doctype html>
 <html lang="{{language}}">
 <head>
@@ -50,24 +48,30 @@
 
   <section class="two-col" style="margin-top:12px;">
     <div class="col box">
-      <div class="label">{{t "issueDate"}}</div>
-      <div>{{issueDate}}</div>
+      {{#if issueDate}}
+        <div class="label">{{t "issueDate"}}</div>
+        <div>{{issueDate}}</div>
+      {{/if}}
       {{#if servicePeriod}}
         <div class="label" style="margin-top:6px;">{{t "servicePeriod"}}</div>
         <div>{{servicePeriod.from}} – {{servicePeriod.to}}</div>
       {{/if}}
     </div>
-    <div class="col box">
-      <div class="label">{{t "paymentTerms"}}</div>
-      <div>{{paymentTerms}}</div>
-      {{#if company.iban}}
-        <div style="margin-top:6px;">
-          <div><span class="label">IBAN:</span> {{company.iban}}</div>
-          {{#if company.bic}}<div><span class="label">BIC:</span> {{company.bic}}</div>{{/if}}
-          {{#if company.bankName}}<div><span class="label">{{t "bank"}}</span> {{company.bankName}}</div>{{/if}}
-        </div>
-      {{/if}}
-    </div>
+    {{#if showPaymentBox}}
+      <div class="col box">
+        {{#if paymentTerms}}
+          <div class="label">{{t "paymentTerms"}}</div>
+          <div>{{paymentTerms}}</div>
+        {{/if}}
+        {{#if company.iban}}
+          <div style="margin-top:6px;">
+            <div><span class="label">IBAN:</span> {{company.iban}}</div>
+            {{#if company.bic}}<div><span class="label">BIC:</span> {{company.bic}}</div>{{/if}}
+            {{#if company.bankName}}<div><span class="label">{{t "bank"}}</span> {{company.bankName}}</div>{{/if}}
+          </div>
+        {{/if}}
+      </div>
+    {{/if}}
   </section>
 
   <h2>{{t "items"}}</h2>

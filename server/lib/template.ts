@@ -113,19 +113,19 @@ export function calcModel(data: InvoiceData, lang: Lang) {
   const grand = data.kleinunternehmer ? subtotalNet : r2(subtotalNet + vatTotal);
 
   const issueDate = toDisplayDate(data.issueDateISO, lang);
-  const paymentTerms = data.dueDays && data.dueDays > 0
-    ? (lang === "de" ? `Zahlbar innerhalb von ${data.dueDays} Tagen`
-      : lang === "ru" ? `Оплатить в течение ${data.dueDays} дней`
-      : lang === "bg" ? `Платимо в рамките на ${data.dueDays} дни`
-      : lang === "tr" ? `${data.dueDays} gün içinde ödenir`
-      : lang === "uk" ? `До сплати протягом ${data.dueDays} днів`
-      : `Payable within ${data.dueDays} days`)
-    : (lang === "de" ? "Zahlbar sofort ohne Abzug"
-      : lang === "ru" ? "К оплате немедленно"
-      : lang === "bg" ? "Платимо веднага"
-      : lang === "tr" ? "Fatura alındığında ödenir"
-      : lang === "uk" ? "До сплати після отримання"
-      : "Due upon receipt");
+
+  const dueRaw = (data as any).dueDays;
+  const dueNum = typeof dueRaw === "number" ? dueRaw : parseInt(String(dueRaw), 10);
+  const hasDue = Number.isFinite(dueNum) && dueNum > 0;
+
+  const paymentTerms = !hasDue
+    ? "" // optional: hide entirely
+    : (lang === "de" ? `Zahlbar innerhalb von ${dueNum} Tagen`
+      : lang === "ru" ? `Оплатить в течение ${dueNum} дней`
+      : lang === "bg" ? `Платимо в рамките на ${dueNum} дни`
+      : lang === "tr" ? `${dueNum} gün içinde ödenir`
+      : lang === "uk" ? `До сплати протягом ${dueNum} днів`
+      : `Payable within ${dueNum} days`);
 
   const notes = [...(data.notes ?? [])];
   if (data.kleinunternehmer) notes.push("Gemäß §19 UStG wird keine Umsatzsteuer berechnet.");
@@ -150,6 +150,7 @@ export function calcModel(data: InvoiceData, lang: Lang) {
         }
       : null,
     paymentTerms,
+    showPaymentBox: Boolean(paymentTerms) || Boolean(data.company?.iban) || Boolean(data.company?.bic) || Boolean(data.company?.bankName),
     itemRows: rows,
     subtotal: fmtMoney(subtotalNet, data.currency, lang),
     vatBlocks: data.kleinunternehmer ? [] : vatBlocks,

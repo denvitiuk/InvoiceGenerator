@@ -13,6 +13,20 @@ function normalizeInvoice(data: Partial<InvoiceData> | undefined): InvoiceData {
   const d = (data || {}) as Partial<InvoiceData>;
   const todayIso = new Date().toISOString().slice(0, 10);
 
+  // Issue date is optional:
+  // - if client sends "" (empty string) -> keep empty (do NOT default to today)
+  // - if omitted/undefined -> default to today
+  // - if invalid -> default to today (preview resilience)
+  const issueRaw = (d as any).issueDateISO;
+  let issueDateISO = todayIso;
+  if (issueRaw === "") {
+    issueDateISO = "";
+  } else if (issueRaw != null && String(issueRaw).trim()) {
+    const v = String(issueRaw).trim();
+    const ok = !Number.isNaN(new Date(v).getTime());
+    issueDateISO = ok ? v : todayIso;
+  }
+
   const fromISO = d.servicePeriod?.fromISO;
   const toISO = d.servicePeriod?.toISO;
   const hasFrom = !!fromISO && !Number.isNaN(new Date(fromISO as string).getTime());
@@ -23,9 +37,19 @@ function normalizeInvoice(data: Partial<InvoiceData> | undefined): InvoiceData {
     language: (d.language as Lang) || "en",
     currency: d.currency || "EUR",
     number: d.number || "",
-    issueDateISO: d.issueDateISO || todayIso,
+    issueDateISO,
     servicePeriod: period,
-    dueDays: typeof d.dueDays === "number" ? d.dueDays : 0,
+    dueDays: (() => {
+      const raw = (d as any).dueDays;
+      // Optional Zahlungsziel:
+      // - if client sends "" or null/undefined -> keep undefined (means: do not show)
+      // - if a valid positive integer -> keep it
+      // - 0 or negative -> treat as undefined (hide)
+      if (raw === "" || raw === undefined || raw === null) return undefined as any;
+      const n = typeof raw === "number" ? raw : parseInt(String(raw), 10);
+      if (!Number.isFinite(n) || n <= 0) return undefined as any;
+      return n as any;
+    })(),
     reverseCharge: !!(d as any).reverseCharge,
     kleinunternehmer: !!(d as any).kleinunternehmer,
     notes: Array.isArray(d.notes) ? d.notes : [],
