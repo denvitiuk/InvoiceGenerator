@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { renderInvoiceHtml } from "../../server/lib/template";
-import {InvoiceData} from "@/types/invoice";
+import { getInvoiceStrings } from "../../server/lib/i18n";
+import { InvoiceData } from "@/types/invoice";
 
 export type Lang = "en" | "de" | "ru" | "bg" | "tr" | "uk";
 
@@ -104,7 +105,7 @@ export async function buildPreviewHtml(input: any): Promise<string> {
   return renderInvoiceHtml({ ...data, language }, { inlineStyles: true });
 }
 
-async function htmlToPdfBuffer(html: string): Promise<Buffer> {
+async function htmlToPdfBuffer(html: string, opts: { footerTemplate: string }): Promise<Buffer> {
   const IS_LINUX = process.platform === "linux";
   const VERCEL_RAW = String(process.env.VERCEL || "").toLowerCase();
   const IS_VERCEL = VERCEL_RAW === "1" || VERCEL_RAW === "true";
@@ -133,7 +134,10 @@ async function htmlToPdfBuffer(html: string): Promise<Buffer> {
       const pdf = await page.pdf({
         format: "A4",
         printBackground: true,
-        margin: { top: "12mm", right: "12mm", bottom: "12mm", left: "12mm" },
+        displayHeaderFooter: true,
+        headerTemplate: "<div></div>",
+        footerTemplate: opts.footerTemplate,
+        margin: { top: "12mm", right: "12mm", bottom: "18mm", left: "12mm" },
       });
 
       await page.close();
@@ -174,7 +178,10 @@ async function htmlToPdfBuffer(html: string): Promise<Buffer> {
       const pdf = await page.pdf({
         format: "A4",
         printBackground: true,
-        margin: { top: "12mm", right: "12mm", bottom: "12mm", left: "12mm" },
+        displayHeaderFooter: true,
+        headerTemplate: "<div></div>",
+        footerTemplate: opts.footerTemplate,
+        margin: { top: "12mm", right: "12mm", bottom: "18mm", left: "12mm" },
       });
 
       await page.close();
@@ -200,7 +207,10 @@ async function htmlToPdfBuffer(html: string): Promise<Buffer> {
     const pdf = await page.pdf({
       format: "A4",
       printBackground: true,
-      margin: { top: "12mm", right: "12mm", bottom: "12mm", left: "12mm" },
+      displayHeaderFooter: true,
+      headerTemplate: "<div></div>",
+      footerTemplate: opts.footerTemplate,
+      margin: { top: "12mm", right: "12mm", bottom: "18mm", left: "12mm" },
     });
 
     await page.close();
@@ -208,6 +218,32 @@ async function htmlToPdfBuffer(html: string): Promise<Buffer> {
   } finally {
     await browser.close();
   }
+}
+
+function escapeHtml(s: string): string {
+  return String(s)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function buildFooterTemplate(inv: InvoiceData, pageLabel: string) {
+  const leftParts: string[] = [];
+  if (inv.company?.name) leftParts.push(escapeHtml(inv.company.name));
+  if (inv.company?.website) leftParts.push(escapeHtml(inv.company.website));
+  const left = leftParts.join(" · ");
+
+  const right = `${escapeHtml(pageLabel)} <span class=\"pageNumber\"></span>/<span class=\"totalPages\"></span>`;
+
+  // Puppeteer/Playwright header/footer templates must be self-contained HTML.
+  return `
+    <div style=\"font-size:9px;width:100%;padding:0 12mm;color:#666;display:flex;justify-content:space-between;\">
+      <div>${left}</div>
+      <div>${right}</div>
+    </div>
+  `;
 }
 
 function sanitizeFilename(name: string): string {
@@ -233,8 +269,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    const inv = normalizeInvoice(((req.body as any)?.data ?? req.body) as any);
+    const dict = await getInvoiceStrings(inv.language);
+    const pageLabel = (dict.page || "Page").toString();
+    const footerTemplate = buildFooterTemplate(inv, pageLabel);
+
     const html = await buildPreviewHtml(req.body);
-    const pdf = await htmlToPdfBuffer(html);
+    const pdf = await htmlToPdfBuffer(html, { footerTemplate });
 
     res.setHeader("Content-Type", "application/pdf");
     const inline =
@@ -242,7 +283,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       String((req.body as any)?.inline ?? "") === "1" ||
       String((req.body as any)?.disposition ?? "").toLowerCase() === "inline";
 
-    const inv = normalizeInvoice(((req.body as any)?.data ?? req.body) as any);
     const baseName = sanitizeFilename(inv.number ? `invoice-${inv.number}` : "invoice");
     const filename = `${baseName}.pdf`;
 

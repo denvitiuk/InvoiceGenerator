@@ -75,5 +75,9 @@
   "numbering_mode": "Нумерація",
   "numbering_auto": "Автоматично",
   "numbering_manual": "Вручну",
-  "invoice_number": "Номер рахунку"
+  "invoice_number": "Номер рахунку",
+  "ustId": "ПДВ №",
+  "steuerNr": "Податковий номер",
+  "company_name": "Назва компанії",
+  "client_name": "Ім’я клієнта"
 }

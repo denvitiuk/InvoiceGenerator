@@ -1,5 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import * as fssync from "node:fs";
 import type Handlebars from "handlebars";
 
 export type Lang = "de" | "en" | "ru" | "bg" | "tr" | "uk" ;
@@ -7,9 +8,34 @@ export const SUPPORTED_LANGS: Lang[] = ["de", "en", "ru", "bg", "tr","uk"];
 export type Dict = Record<string, string>;
 
 const ROOT = process.cwd();
+
+function pickI18nBaseDir() {
+  // In Next dev/serverless, `process.cwd()` is usually `.../invoicegener/web`.
+  // But some environments may run from the repo root. Support both.
+  const candidates = [
+    path.resolve(ROOT, "public", "i18n"),
+    path.resolve(ROOT, "web", "public", "i18n"),
+    // Backward-compat (old Express layout)
+    path.resolve(ROOT, "i18n"),
+  ];
+
+  for (const c of candidates) {
+    try {
+      if (fssync.existsSync(c)) return c;
+    } catch {
+      // ignore
+    }
+  }
+
+  // Default to the Next layout.
+  return path.resolve(ROOT, "public", "i18n");
+}
+
+const I18N_BASE = pickI18nBaseDir();
+
 const DIRS = {
-  invoice: path.resolve(ROOT, "i18n", "invoice"),
-  ui: path.resolve(ROOT, "i18n", "ui"),
+  invoice: path.resolve(I18N_BASE, "invoice"),
+  ui: path.resolve(I18N_BASE, "ui"),
 };
 
 const cache = {

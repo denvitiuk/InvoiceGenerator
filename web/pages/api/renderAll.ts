@@ -9,6 +9,7 @@ import archiver from "archiver";
 import { renderInvoiceHtml } from "../../server/lib/template";
 import { nextNumber } from "../../server/lib/seq";
 import { SUPPORTED_LANGS, resolveLang, type Lang } from "../../server/lib/i18n";
+import { getInvoiceStrings } from "../../server/lib/i18n";
 import type { InvoiceData } from "@/types/invoice";
 
 export const config = {
@@ -125,6 +126,30 @@ function normalizeInvoice(data: Partial<InvoiceData> | undefined): InvoiceData {
   } as InvoiceData;
 }
 
+function escapeHtml(s: string): string {
+  return String(s)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function buildFooterTemplate(inv: InvoiceData, pageLabel: string) {
+  const leftParts: string[] = [];
+  if (inv.company?.name) leftParts.push(escapeHtml(inv.company.name));
+  if (inv.company?.website) leftParts.push(escapeHtml(inv.company.website));
+  const left = leftParts.join(" · ");
+  const right = `${escapeHtml(pageLabel)} <span class=\"pageNumber\"></span>/<span class=\"totalPages\"></span>`;
+
+  return `
+    <div style=\"font-size:9px;width:100%;padding:0 12mm;color:#666;display:flex;justify-content:space-between;\">
+      <div>${left}</div>
+      <div>${right}</div>
+    </div>
+  `;
+}
+
 function sanitizeZipBaseName(input: string): string {
   return (input || "")
     .replace(/\.zip$/i, "")
@@ -133,7 +158,7 @@ function sanitizeZipBaseName(input: string): string {
     .trim();
 }
 
-async function htmlToPdfBuffer(html: string): Promise<Buffer> {
+async function htmlToPdfBuffer(html: string, opts: { footerTemplate: string }): Promise<Buffer> {
   const IS_LINUX = process.platform === "linux";
   const VERCEL_RAW = String(process.env.VERCEL || "").toLowerCase();
   const IS_VERCEL = VERCEL_RAW === "1" || VERCEL_RAW === "true";
@@ -159,7 +184,10 @@ async function htmlToPdfBuffer(html: string): Promise<Buffer> {
       const pdf = await page.pdf({
         format: "A4",
         printBackground: true,
-        margin: { top: "12mm", right: "12mm", bottom: "12mm", left: "12mm" },
+        displayHeaderFooter: true,
+        headerTemplate: "<div></div>",
+        footerTemplate: opts.footerTemplate,
+        margin: { top: "12mm", right: "12mm", bottom: "18mm", left: "12mm" },
       });
       await page.close();
       return Buffer.from(pdf);
@@ -191,7 +219,10 @@ async function htmlToPdfBuffer(html: string): Promise<Buffer> {
       const pdf = await page.pdf({
         format: "A4",
         printBackground: true,
-        margin: { top: "12mm", right: "12mm", bottom: "12mm", left: "12mm" },
+        displayHeaderFooter: true,
+        headerTemplate: "<div></div>",
+        footerTemplate: opts.footerTemplate,
+        margin: { top: "12mm", right: "12mm", bottom: "18mm", left: "12mm" },
       });
       await page.close();
       return Buffer.from(pdf);
@@ -214,7 +245,10 @@ async function htmlToPdfBuffer(html: string): Promise<Buffer> {
     const pdf = await page.pdf({
       format: "A4",
       printBackground: true,
-      margin: { top: "12mm", right: "12mm", bottom: "12mm", left: "12mm" },
+      displayHeaderFooter: true,
+      headerTemplate: "<div></div>",
+      footerTemplate: opts.footerTemplate,
+      margin: { top: "12mm", right: "12mm", bottom: "18mm", left: "12mm" },
     });
     await page.close();
     return Buffer.from(pdf);
@@ -223,8 +257,8 @@ async function htmlToPdfBuffer(html: string): Promise<Buffer> {
   }
 }
 
-async function renderPdfToFile(html: string, outPath: string): Promise<string> {
-  const buf = await htmlToPdfBuffer(html);
+async function renderPdfToFile(html: string, outPath: string, opts: { footerTemplate: string }): Promise<string> {
+  const buf = await htmlToPdfBuffer(html, opts);
   await fsp.mkdir(path.dirname(outPath), { recursive: true });
   await fsp.writeFile(outPath, buf);
   return outPath;
@@ -237,7 +271,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
-
   if (req.method === "GET") {
     // Simple ping
     return res.status(200).json({ ok: true, route: "/api/render-all" });
@@ -300,7 +333,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       (async () => {
         for (const lang of langs) {
           const html = await renderInvoiceHtml(data, { inlineStyles: true, language: lang });
-          const pdfBuf = await htmlToPdfBuffer(html);
+          const dict = await getInvoiceStrings(lang);
+          const pageLabel = (dict.page || "Page").toString();
+          const footerTemplate = buildFooterTemplate({ ...data, language: lang } as any, pageLabel);
+          const pdfBuf = await htmlToPdfBuffer(html, { footerTemplate });
           const name = `rechnung-${data.number}-${lang}.pdf`;
           archive.append(pdfBuf, { name });
         }
@@ -321,10 +357,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const pdfs: { lang: Lang; name: string; path: string }[] = [];
     for (const lang of langs) {
       const html = await renderInvoiceHtml(data, { inlineStyles: true, language: lang });
+      const dict = await getInvoiceStrings(lang);
+      const pageLabel = (dict.page || "Page").toString();
+      const footerTemplate = buildFooterTemplate({ ...data, language: lang } as any, pageLabel);
       const name = `rechnung-${data.number}-${lang}.pdf`;
       const fp = path.join(outDir, name);
-      const abs = await renderPdfToFile(html, fp);
-      pdfs.push({ lang, name, path: abs });
+
+      const buf = await htmlToPdfBuffer(html, { footerTemplate });
+      await fsp.mkdir(path.dirname(fp), { recursive: true });
+      await fsp.writeFile(fp, buf);
+
+      pdfs.push({ lang, name, path: fp });
     }
 
     const zipPath = path.join(outDir, zipName);

@@ -72,5 +72,9 @@
   "numbering_mode": "Numbering",
   "numbering_auto": "Auto",
   "numbering_manual": "Manual",
-  "invoice_number": "Invoice number"
+  "invoice_number": "Invoice number",
+  "ustId": "USt-IdNr.",
+  "steuerNr": "Tax nummer",
+  "company_name": "Company name",
+  "client_name": "Client name"
 }

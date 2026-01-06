@@ -72,5 +72,9 @@
   "numbering_mode": "Нумерация",
   "numbering_auto": "Автоматически",
   "numbering_manual": "Вручную",
-  "invoice_number": "Номер счёта"
+  "invoice_number": "Номер счёта",
+  "ustId": "НДС ID",
+  "steuerNr": "Налоговый номер",
+  "company_name": "Название компании",
+  "client_name": "Имя клиента"
 }

@@ -72,5 +72,10 @@
   "numbering_mode": "Nummerierung",
   "numbering_auto": "Automatisch",
   "numbering_manual": "Manuell",
-  "invoice_number": "Rechnungsnummer"
+  "invoice_number": "Rechnungsnummer",
+  "ustId": "USt-IdNr.",
+  "steuerNr": "Steuernummer",
+  "company_name": "Firmenname",
+  "client_name": "Kundenname"
+
 }

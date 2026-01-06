@@ -8,7 +8,7 @@
   {{#if styles}}
     <style>{{{styles}}}</style>
   {{else}}
-    <link rel="stylesheet" href="/web/templatesates/styles.css" />
+    <link rel="stylesheet" href="/templates/styles.css" />
   {{/if}}
 </head>
 <body>
@@ -140,8 +140,9 @@
   {{/if}}
 
   <footer class="footer">
-    <div>{{company.name}} · {{company.website}}</div>
-    <div>{{t "page"}} <span class="pageNumber"></span>/<span class="totalPages"></span></div>
+    <div>
+      {{company.name}}{{#if company.website}} · {{company.website}}{{/if}}
+    </div>
   </footer>
 
 </body>

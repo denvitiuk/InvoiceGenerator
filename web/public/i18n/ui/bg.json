@@ -72,5 +72,9 @@
   "numbering_mode": "Режим на номериране",
   "numbering_auto": "Автоматично",
   "numbering_manual": "Ръчно",
-  "invoice_number": "Номер на фактурата"
+  "invoice_number": "Номер на фактурата",
+  "ustId": "ДДС №",
+  "steuerNr": "Данъчен №",
+  "company_name": "Име на фирмата",
+  "client_name": "Име на клиента"
 }

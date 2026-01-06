@@ -315,9 +315,9 @@ export default function AppShell() {
     setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
-  function downloadFromOut(path: string, name?: string) {
-    dbg("downloadFromOut", { path, name });
-    const url = `/download?path=${encodeURIComponent(path)}${name ? `&name=${encodeURIComponent(name)}` : ""}`;
+  function downloadFromOut(filePath: string, name?: string) {
+    dbg("downloadFromOut", { path: filePath, name });
+    const url = `/api/download?path=${encodeURIComponent(filePath)}${name ? `&name=${encodeURIComponent(name)}` : ""}`;
     const a = document.createElement("a");
     a.href = url;
     if (name) a.download = name;
@@ -402,7 +402,7 @@ export default function AppShell() {
         <section style={{ marginTop: 16 }}>
           <h3 style={{ marginTop: 0 }}>{t("section_company")}</h3>
           <input
-            placeholder="Company name"
+            placeholder={t("company_name") || "Company name"}
             value={invoice.company.name}
             onChange={(e) => patchCompany({ name: e.target.value })}
             style={{ width: "100%", marginBottom: 8 }}
@@ -456,12 +456,12 @@ export default function AppShell() {
           {/* Tax identifiers */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
             <input
-              placeholder={"USt-IdNr."}
+              placeholder={t("ustId") || "USt-IdNr."}
               value={invoice.company.ustId || ""}
               onChange={(e) => patchCompany({ ustId: e.target.value })}
             />
             <input
-              placeholder={"Steuernummer"}
+              placeholder={t("steuerNr") || "Steuernummer"}
               value={invoice.company.steuerNr || ""}
               onChange={(e) => patchCompany({ steuerNr: e.target.value })}
             />
@@ -472,7 +472,7 @@ export default function AppShell() {
         <section style={{ marginTop: 16 }}>
           <h3 style={{ marginTop: 0 }}>{t("section_client")}</h3>
           <input
-            placeholder="Client name"
+            placeholder={t("client_name") || "Client name"}
             value={invoice.client.name}
             onChange={(e) => patchClient({ name: e.target.value })}
             style={{ width: "100%", marginBottom: 8 }}

@@ -72,5 +72,10 @@
   "numbering_mode": "Numaralandırma",
   "numbering_auto": "Otomatik",
   "numbering_manual": "Manuel",
-  "invoice_number": "Fatura numarası"
+  "invoice_number": "Fatura numarası",
+  "ustId": "KDV No.",
+  "steuerNr": "Vergi No.",
+  "company_name": "Şirket adı",
+  "client_name": "Müşteri adı"
+
 }
