@@ -76,5 +76,13 @@
   "ustId": "НДС ID",
   "steuerNr": "Налоговый номер",
   "company_name": "Название компании",
-  "client_name": "Имя клиента"
+  "client_name": "Имя клиента",
+  "add_logo": "Добавить логотип",
+  "remove_logo": "Удалить логотип",
+  "logo_selected": "Логотип выбран",
+  "logo_hint": "PNG/JPG/SVG/WEBP",
+
+  "theme_receipt_pro": "Receipt Pro",
+  "theme_classic": "Классический",
+  "theme_palette": "Палитра"
 }

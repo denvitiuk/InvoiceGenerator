@@ -79,5 +79,15 @@
   "ustId": "ПДВ №",
   "steuerNr": "Податковий номер",
   "company_name": "Назва компанії",
-  "client_name": "Ім’я клієнта"
+  "client_name": "Ім’я клієнта",
+
+  "add_logo": "Додати логотип",
+  "remove_logo": "Видалити логотип",
+  "logo_selected": "Логотип вибрано",
+  "logo_hint": "PNG/JPG/SVG/WEBP",
+
+  "theme_receipt_pro": "Receipt Pro",
+  "theme_classic": "Класичний",
+  "theme_palette": "Палітра"
+
 }

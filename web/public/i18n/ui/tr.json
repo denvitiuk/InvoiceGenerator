@@ -76,6 +76,14 @@
   "ustId": "KDV No.",
   "steuerNr": "Vergi No.",
   "company_name": "Şirket adı",
-  "client_name": "Müşteri adı"
+  "client_name": "Müşteri adı",
+  "add_logo": "Logo ekle",
+  "remove_logo": "Logoyu kaldır",
+  "logo_selected": "Logo seçildi",
+  "logo_hint": "PNG/JPG/SVG/WEBP",
+
+  "theme_receipt_pro": "Receipt Pro",
+  "theme_classic": "Klasik",
+  "theme_palette": "Palet"
 
 }
