@@ -76,6 +76,14 @@
   "ustId": "USt-IdNr.",
   "steuerNr": "Steuernummer",
   "company_name": "Firmenname",
-  "client_name": "Kundenname"
+  "client_name": "Kundenname",
+  "add_logo": "Logo hinzufügen",
+  "remove_logo": "Logo entfernen",
+  "logo_selected": "Logo ausgewählt",
+  "logo_hint": "PNG/JPG/SVG/WEBP",
+
+  "theme_receipt_pro": "Receipt Pro",
+  "theme_classic": "Klassisch",
+  "theme_palette": "Palette"
 
 }

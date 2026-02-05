@@ -34,6 +34,14 @@ export default function Toolbar({ onPreview, onRenderPDF, onRenderAll, onDownloa
   const setShowNumberInTitle = useStore((s) => s.setShowNumberInTitle);
   const setFileName = useStore((s) => s.setFileName);
 
+  // Theme / Palette (Receipt Pro)
+  const applyThemePreset = useStore((s: any) => s.applyThemePreset);
+  const clearTheme = useStore((s: any) => s.clearTheme);
+  const patchThemeColors = useStore((s: any) => s.patchThemeColors);
+  const setThemeRoundness = useStore((s: any) => s.setThemeRoundness);
+
+  const [showPalette, setShowPalette] = useState(false);
+
   const MODES: NumberingMode[] = ["auto", "manual"];
 
   // upload logo
@@ -85,9 +93,103 @@ export default function Toolbar({ onPreview, onRenderPDF, onRenderAll, onDownloa
       <div>
         <input ref={fileRef} type="file" accept="image/*,.svg,.pdf" style={{ display: "none" }} onChange={handleFileChange} />
         <button onClick={() => fileRef.current?.click()} disabled={uploading}>
-          {uploading ? "…" : t("upload")} {t("logo")}
+          {uploading ? "…" : (t("add_logo") || "Add logo")}
         </button>
       </div>
+
+      {/* Receipt Pro style + palette */}
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <button
+          onClick={() => {
+            applyThemePreset?.("receiptPro");
+            setShowPalette(true);
+          }}
+          title="Apply Receipt Pro style"
+        >
+          Receipt Pro
+        </button>
+        <button
+          onClick={() => {
+            clearTheme?.();
+            setShowPalette(false);
+          }}
+          title="Reset to classic"
+        >
+          Classic
+        </button>
+        <button onClick={() => setShowPalette((v) => !v)} title="Customize colors">
+          Palette
+        </button>
+      </div>
+
+      {showPalette && (
+        <div
+          style={{
+            display: "flex",
+            gap: 10,
+            alignItems: "center",
+            flexWrap: "wrap",
+            padding: "6px 8px",
+            border: "1px solid #e5e7eb",
+            borderRadius: 10,
+          }}
+        >
+          <label style={{ fontSize: 12, opacity: 0.8 }}>
+            Primary{" "}
+            <input
+              type="color"
+              value={(invoice as any)?.theme?.colors?.primary || "#0B1220"}
+              onChange={(e) => patchThemeColors?.({ primary: e.target.value })}
+              style={{ marginLeft: 6 }}
+            />
+          </label>
+
+          <label style={{ fontSize: 12, opacity: 0.8 }}>
+            Accent{" "}
+            <input
+              type="color"
+              value={(invoice as any)?.theme?.colors?.accent || "#00C2FF"}
+              onChange={(e) => patchThemeColors?.({ accent: e.target.value })}
+              style={{ marginLeft: 6 }}
+            />
+          </label>
+
+          <label style={{ fontSize: 12, opacity: 0.8 }}>
+            Text{" "}
+            <input
+              type="color"
+              value={(invoice as any)?.theme?.colors?.text || "#0B1220"}
+              onChange={(e) => patchThemeColors?.({ text: e.target.value })}
+              style={{ marginLeft: 6 }}
+            />
+          </label>
+
+          <label style={{ fontSize: 12, opacity: 0.8 }}>
+            Background{" "}
+            <input
+              type="color"
+              value={(invoice as any)?.theme?.colors?.background || "#FFFFFF"}
+              onChange={(e) => patchThemeColors?.({ background: e.target.value })}
+              style={{ marginLeft: 6 }}
+            />
+          </label>
+
+          <label style={{ fontSize: 12, opacity: 0.8 }}>
+            Round{" "}
+            <input
+              type="range"
+              min={0}
+              max={24}
+              value={(invoice as any)?.theme?.layout?.roundness ?? 18}
+              onChange={(e) => setThemeRoundness?.(parseInt(e.target.value, 10))}
+              style={{ marginLeft: 6 }}
+            />
+            <span style={{ marginLeft: 6, fontSize: 12, opacity: 0.8 }}>
+              {((invoice as any)?.theme?.layout?.roundness ?? 18)}px
+            </span>
+          </label>
+        </div>
+      )}
 
       {/* Document options (title / numbering / number / filename) */}
       <label style={{ fontSize: 12, opacity: 0.8 }}>

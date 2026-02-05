@@ -47,6 +47,12 @@ function dbg(...args: any[]) {
   if (PDF_DEBUG) console.log("[render-all]", ...args);
 }
 
+function getBaseUrl(req: NextApiRequest): string {
+  const proto = String((req.headers["x-forwarded-proto"] as any) || "http").split(",")[0].trim() || "http";
+  const host = String((req.headers["x-forwarded-host"] as any) || req.headers.host || "localhost:3000").split(",")[0].trim();
+  return `${proto}://${host}`;
+}
+
 function pickOutDir(): string {
   if (process.env.VERCEL) return TMP_OUT_DIR;
   // Prefer existing repo root out/ if present (matches old Express behavior), otherwise use web/out
@@ -95,6 +101,7 @@ function normalizeInvoice(data: Partial<InvoiceData> | undefined): InvoiceData {
     reverseCharge: !!(d as any).reverseCharge,
     kleinunternehmer: !!(d as any).kleinunternehmer,
     notes: Array.isArray(d.notes) ? d.notes : [],
+    theme: (d as any).theme as any,
 
     company: {
       name: s(d.company?.name) || "—",
@@ -108,6 +115,7 @@ function normalizeInvoice(data: Partial<InvoiceData> | undefined): InvoiceData {
       bic: cleanBic(d.company?.bic),
       bankName: s(d.company?.bankName),
       logoPath: s(d.company?.logoPath),
+      logoUrl: (d.company as any)?.logoUrl,
     },
 
     client: {
@@ -285,6 +293,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const body = (req.body ?? {}) as any;
     const raw = (body.data ?? body) as Partial<InvoiceData>; // accept {data: {...}} or plain invoice JSON
     let data = normalizeInvoice(raw);
+    const baseUrl = getBaseUrl(req);
 
     // Determine languages
     const all: boolean = Boolean(body.all ?? false);
@@ -332,7 +341,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       (async () => {
         for (const lang of langs) {
-          const html = await renderInvoiceHtml(data, { inlineStyles: true, language: lang });
+          const html = await renderInvoiceHtml(data, { inlineStyles: true, language: lang, baseUrl });
           const dict = await getInvoiceStrings(lang);
           const pageLabel = (dict.page || "Page").toString();
           const footerTemplate = buildFooterTemplate({ ...data, language: lang } as any, pageLabel);
@@ -356,7 +365,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const pdfs: { lang: Lang; name: string; path: string }[] = [];
     for (const lang of langs) {
-      const html = await renderInvoiceHtml(data, { inlineStyles: true, language: lang });
+      const html = await renderInvoiceHtml(data, { inlineStyles: true, language: lang, baseUrl });
       const dict = await getInvoiceStrings(lang);
       const pageLabel = (dict.page || "Page").toString();
       const footerTemplate = buildFooterTemplate({ ...data, language: lang } as any, pageLabel);

@@ -21,6 +21,12 @@ function setCors(res: NextApiResponse) {
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
 }
 
+function getBaseUrl(req: NextApiRequest): string {
+  const proto = String((req.headers["x-forwarded-proto"] as any) || "http").split(",")[0].trim() || "http";
+  const host = String((req.headers["x-forwarded-host"] as any) || req.headers.host || "localhost:3000").split(",")[0].trim();
+  return `${proto}://${host}`;
+}
+
 // Make preview resilient to half-empty/invalid payloads
 export function normalizeInvoice(data: Partial<InvoiceData> | undefined): InvoiceData {
   const d = (data || {}) as Partial<InvoiceData>;
@@ -67,6 +73,7 @@ export function normalizeInvoice(data: Partial<InvoiceData> | undefined): Invoic
     reverseCharge: !!(d as any).reverseCharge,
     kleinunternehmer: !!(d as any).kleinunternehmer,
     notes: Array.isArray(d.notes) ? d.notes : [],
+    theme: (d as any).theme as any,
 
     company: {
       name: d.company?.name || "—",
@@ -80,6 +87,7 @@ export function normalizeInvoice(data: Partial<InvoiceData> | undefined): Invoic
       bic: d.company?.bic,
       bankName: d.company?.bankName,
       logoPath: d.company?.logoPath,
+      logoUrl: (d.company as any)?.logoUrl,
     },
 
     client: {
@@ -98,13 +106,13 @@ export function normalizeInvoice(data: Partial<InvoiceData> | undefined): Invoic
   } as InvoiceData;
 }
 
-export async function buildPreviewHtml(input: any): Promise<string> {
+export async function buildPreviewHtml(input: any, baseUrl?: string): Promise<string> {
   const body = (input ?? {}) as any;
   const raw = (body.data ?? body) as Partial<InvoiceData>; // accept either {data: {...}} or plain invoice JSON
   const language = (body.language ?? (raw as any).language ?? "en") as Lang;
   const data = normalizeInvoice(raw);
   // Inline styles to make preview look exactly like final PDF
-  const html = await renderInvoiceHtml({ ...data, language }, { inlineStyles: true });
+  const html = await renderInvoiceHtml({ ...data, language }, { inlineStyles: true, baseUrl });
   return html;
 }
 
@@ -126,7 +134,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const html = await buildPreviewHtml(req.body);
+    const html = await buildPreviewHtml(req.body, getBaseUrl(req));
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     return res.status(200).send(html);
   } catch (e: any) {

@@ -66,6 +66,7 @@ export function normalizeInvoice(data: Partial<InvoiceData> | undefined): Invoic
     reverseCharge: !!(d as any).reverseCharge,
     kleinunternehmer: !!(d as any).kleinunternehmer,
     notes: Array.isArray(d.notes) ? d.notes : [],
+    theme: (d as any).theme as any,
 
     company: {
       name: d.company?.name || "—",
@@ -79,6 +80,7 @@ export function normalizeInvoice(data: Partial<InvoiceData> | undefined): Invoic
       bic: d.company?.bic,
       bankName: d.company?.bankName,
       logoPath: d.company?.logoPath,
+      logoUrl: (d.company as any)?.logoUrl,
     },
 
     client: {
@@ -97,12 +99,17 @@ export function normalizeInvoice(data: Partial<InvoiceData> | undefined): Invoic
   } as InvoiceData;
 }
 
-export async function buildPreviewHtml(input: any): Promise<string> {
+export async function buildPreviewHtml(input: any, baseUrl?: string): Promise<string> {
   const body = (input ?? {}) as any;
   const raw = (body.data ?? body) as Partial<InvoiceData>;
   const language = (body.language ?? (raw as any).language ?? "en") as Lang;
   const data = normalizeInvoice(raw);
-  return renderInvoiceHtml({ ...data, language }, { inlineStyles: true });
+  return renderInvoiceHtml({ ...data, language }, { inlineStyles: true, baseUrl });
+}
+function getBaseUrl(req: NextApiRequest): string {
+  const proto = String((req.headers["x-forwarded-proto"] as any) || "http").split(",")[0].trim() || "http";
+  const host = String((req.headers["x-forwarded-host"] as any) || req.headers.host || "localhost:3000").split(",")[0].trim();
+  return `${proto}://${host}`;
 }
 
 async function htmlToPdfBuffer(html: string, opts: { footerTemplate: string }): Promise<Buffer> {
@@ -274,7 +281,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const pageLabel = (dict.page || "Page").toString();
     const footerTemplate = buildFooterTemplate(inv, pageLabel);
 
-    const html = await buildPreviewHtml(req.body);
+    const baseUrl = getBaseUrl(req);
+    const html = await buildPreviewHtml(req.body, baseUrl);
     const pdf = await htmlToPdfBuffer(html, { footerTemplate });
 
     res.setHeader("Content-Type", "application/pdf");

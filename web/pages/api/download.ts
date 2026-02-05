@@ -14,6 +14,10 @@ export const config = {
 const OUT_DIR_WEB = path.resolve(process.cwd(), "out");
 const OUT_DIR_REPO = path.resolve(process.cwd(), "..", "out");
 const TMP_OUT_DIR = path.resolve(process.env.TMPDIR || "/tmp", "out");
+// Uploads (used by /api/upload). Typically stored in TMPDIR on Vercel/Linux.
+const TMP_UPLOAD_DIR = path.resolve(process.env.TMPDIR || "/tmp", "uploads");
+// Local dev/self-host: uploads are stored in repo root under assets/uploads
+const ASSETS_UPLOAD_DIR = path.resolve(process.cwd(), "..", "assets", "uploads");
 
 function isInsideDir(abs: string, dir: string) {
   return abs === dir || abs.startsWith(dir + path.sep);
@@ -31,13 +35,17 @@ function resolveDownloadPath(filePath: string): string | null {
     candidates.push(path.resolve(path.join(OUT_DIR_WEB, raw)));
     candidates.push(path.resolve(path.join(OUT_DIR_REPO, raw)));
     candidates.push(path.resolve(path.join(TMP_OUT_DIR, raw)));
+    candidates.push(path.resolve(path.join(TMP_UPLOAD_DIR, raw)));
+    candidates.push(path.resolve(path.join(ASSETS_UPLOAD_DIR, raw)));
   }
 
   for (const abs of candidates) {
     const ok =
       isInsideDir(abs, OUT_DIR_WEB) ||
       isInsideDir(abs, OUT_DIR_REPO) ||
-      isInsideDir(abs, TMP_OUT_DIR);
+      isInsideDir(abs, TMP_OUT_DIR) ||
+      isInsideDir(abs, TMP_UPLOAD_DIR) ||
+      isInsideDir(abs, ASSETS_UPLOAD_DIR);
     if (!ok) continue;
 
     try {

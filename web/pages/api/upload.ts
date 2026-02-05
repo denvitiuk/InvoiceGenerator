@@ -79,9 +79,14 @@ function buildFileResponse(f: any) {
   const safeName = typeof f.originalname === "string" ? f.originalname : "file";
   return {
     ok: true,
-    // On Vercel the file physically lives in /tmp/uploads (ephemeral).
-    // We return the server path so subsequent server calls (rendering) can read it.
+
+    // URL the browser can load (used by logoPath / extraImages in templates)
+    // We serve it through /api/download so it works even when stored outside /public.
+    path: `/api/download?path=${encodeURIComponent(f.path)}`,
+
+    // Absolute filesystem path (server-side use; e.g., PDF rendering)
     storedPath: f.path,
+
     filename: f.filename,
     originalName: safeName,
     size: f.size,

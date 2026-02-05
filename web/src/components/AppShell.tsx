@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useRef, useState } from "react";
 import { useStore, calcTotals } from "../lib/store";
 import { useI18n, useT } from "../lib/i18n";
-import { previewInvoice, renderInvoiceBlob, renderAllBlob, openInNewTab } from "../lib/api";
+import { previewInvoice, renderInvoiceBlob, renderAllBlob, openInNewTab, uploadFile } from "../lib/api";
 
 import PreviewPane from "./PreviewPane";
 import {Lang} from "../../server/lib/i18n";
@@ -37,6 +37,33 @@ export default function AppShell() {
   const addItem = useStore((s) => s.addItem);
   const updateItem = useStore((s) => s.updateItem);
   const removeItem = useStore((s) => s.removeItem);
+
+  // Theme / palette actions (Receipt Pro)
+  const applyThemePreset = useStore((s: any) => s.applyThemePreset);
+  const clearTheme = useStore((s: any) => s.clearTheme);
+  const patchThemeColors = useStore((s: any) => s.patchThemeColors);
+  const setThemeRoundness = useStore((s: any) => s.setThemeRoundness);
+
+  const [showPalette, setShowPalette] = useState(false);
+
+  // Logo upload
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoFileRef = useRef<HTMLInputElement | null>(null);
+
+  async function onPickLogo(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setUploadingLogo(true);
+    try {
+      const resp = await uploadFile(f);
+      patchCompany({ logoPath: resp.path });
+    } catch (err: any) {
+      alert(err?.message || "Upload failed");
+    } finally {
+      setUploadingLogo(false);
+      e.target.value = "";
+    }
+  }
 
   const totals = React.useMemo(() => calcTotals(invoice), [invoice]);
 
@@ -407,6 +434,37 @@ export default function AppShell() {
             onChange={(e) => patchCompany({ name: e.target.value })}
             style={{ width: "100%", marginBottom: 8 }}
           />
+
+          {/* Logo */}
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+            <input
+              ref={logoFileRef}
+              type="file"
+              accept="image/*,.svg"
+              style={{ display: "none" }}
+              onChange={onPickLogo}
+            />
+            <button
+              type="button"
+              onClick={() => logoFileRef.current?.click()}
+              disabled={uploadingLogo}
+              style={{ padding: "10px 14px", borderRadius: 14 }}
+            >
+              {uploadingLogo ? "…" : (t("add_logo") || "Add logo")}
+            </button>
+            <button
+              type="button"
+              onClick={() => patchCompany({ logoPath: undefined as any, logoUrl: undefined as any })}
+              disabled={!(invoice.company as any)?.logoPath && !(invoice.company as any)?.logoUrl}
+              style={{ padding: "10px 14px", borderRadius: 14, opacity: 0.85 }}
+              title={t("remove_logo") || "Remove logo"}
+            >
+              {t("remove_logo") || "Remove logo"}
+            </button>
+            <div style={{ fontSize: 12, opacity: 0.7 }}>
+              {(invoice.company as any)?.logoPath ? "Logo selected" : (t("logo_hint") || "PNG/JPG/SVG")}
+            </div>
+          </div>
           <textarea
             placeholder={t("address")}
             value={(invoice.company.addressLines || []).join("\n")}
@@ -771,6 +829,156 @@ export default function AppShell() {
 
         {/* Actions */}
         <section style={{ marginTop: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            onClick={() => {
+              applyThemePreset?.("receiptPro");
+              setShowPalette(true);
+            }}
+            style={{ borderRadius: 14, padding: "10px 14px" }}
+            title="Apply Receipt Pro style"
+          >
+            Receipt Pro
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              clearTheme?.();
+              setShowPalette(false);
+            }}
+            style={{ borderRadius: 14, padding: "10px 14px" }}
+            title="Reset to classic"
+          >
+            Classic
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowPalette((v) => !v)}
+            style={{ borderRadius: 14, padding: "10px 14px" }}
+            title="Customize colors"
+          >
+            Palette
+          </button>
+
+          {showPalette && (
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                alignItems: "center",
+                flexWrap: "wrap",
+                padding: "10px 12px",
+                border: "1px solid #e5e7eb",
+                borderRadius: 16,
+              }}
+            >
+              <label style={{ fontSize: 12, opacity: 0.8 }}>
+                Primary{" "}
+                <input
+                  type="color"
+                  value={(invoice as any)?.theme?.colors?.primary || "#0B1220"}
+                  onChange={(e) => patchThemeColors?.({ primary: e.target.value })}
+                  style={{ marginLeft: 6 }}
+                />
+              </label>
+
+              <label style={{ fontSize: 12, opacity: 0.8 }}>
+                Accent{" "}
+                <input
+                  type="color"
+                  value={(invoice as any)?.theme?.colors?.accent || "#00C2FF"}
+                  onChange={(e) => patchThemeColors?.({ accent: e.target.value })}
+                  style={{ marginLeft: 6 }}
+                />
+              </label>
+
+              <label style={{ fontSize: 12, opacity: 0.8 }}>
+                Text{" "}
+                <input
+                  type="color"
+                  value={(invoice as any)?.theme?.colors?.text || "#0B1220"}
+                  onChange={(e) => patchThemeColors?.({ text: e.target.value })}
+                  style={{ marginLeft: 6 }}
+                />
+              </label>
+
+              <label style={{ fontSize: 12, opacity: 0.8 }}>
+                Muted{" "}
+                <input
+                  type="color"
+                  value={(invoice as any)?.theme?.colors?.mutedText || "#6B7280"}
+                  onChange={(e) => patchThemeColors?.({ mutedText: e.target.value })}
+                  style={{ marginLeft: 6 }}
+                />
+              </label>
+
+              <label style={{ fontSize: 12, opacity: 0.8 }}>
+                BG{" "}
+                <input
+                  type="color"
+                  value={(invoice as any)?.theme?.colors?.background || "#FFFFFF"}
+                  onChange={(e) => patchThemeColors?.({ background: e.target.value })}
+                  style={{ marginLeft: 6 }}
+                />
+              </label>
+
+              <label style={{ fontSize: 12, opacity: 0.8 }}>
+                Surface{" "}
+                <input
+                  type="color"
+                  value={(invoice as any)?.theme?.colors?.surface || "#F6F8FB"}
+                  onChange={(e) => patchThemeColors?.({ surface: e.target.value })}
+                  style={{ marginLeft: 6 }}
+                />
+              </label>
+
+              <label style={{ fontSize: 12, opacity: 0.8 }}>
+                Border{" "}
+                <input
+                  type="color"
+                  value={(invoice as any)?.theme?.colors?.border || "#E6EAF0"}
+                  onChange={(e) => patchThemeColors?.({ border: e.target.value })}
+                  style={{ marginLeft: 6 }}
+                />
+              </label>
+
+              <label style={{ fontSize: 12, opacity: 0.8 }}>
+                Grad from{" "}
+                <input
+                  type="color"
+                  value={(invoice as any)?.theme?.colors?.gradientFrom || (invoice as any)?.theme?.colors?.primary || "#0B1220"}
+                  onChange={(e) => patchThemeColors?.({ gradientFrom: e.target.value })}
+                  style={{ marginLeft: 6 }}
+                />
+              </label>
+
+              <label style={{ fontSize: 12, opacity: 0.8 }}>
+                Grad to{" "}
+                <input
+                  type="color"
+                  value={(invoice as any)?.theme?.colors?.gradientTo || (invoice as any)?.theme?.colors?.accent || "#00C2FF"}
+                  onChange={(e) => patchThemeColors?.({ gradientTo: e.target.value })}
+                  style={{ marginLeft: 6 }}
+                />
+              </label>
+
+              <label style={{ fontSize: 12, opacity: 0.8 }}>
+                Round{" "}
+                <input
+                  type="range"
+                  min={0}
+                  max={24}
+                  value={(invoice as any)?.theme?.layout?.roundness ?? 18}
+                  onChange={(e) => setThemeRoundness?.(parseInt(e.target.value, 10))}
+                  style={{ marginLeft: 6 }}
+                />
+                <span style={{ marginLeft: 6, fontSize: 12, opacity: 0.8 }}>
+                  {((invoice as any)?.theme?.layout?.roundness ?? 18)}px
+                </span>
+              </label>
+            </div>
+          )}
+
           <button onClick={onOpenPreview}>{t("preview")}</button>
           <button onClick={onRenderPDF}>{t("generate_pdf")}</button>
           <button onClick={onRenderAll}>{t("generate_all")}</button>

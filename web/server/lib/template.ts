@@ -7,7 +7,7 @@ import type { Locale } from "date-fns";
 import { de, enUS, ru, bg, tr, uk } from "date-fns/locale";
 
 import { preloadInvoiceDicts, registerTHelper, resolveLang, type Lang } from "./i18n";
-import {ExtraImage, InvoiceData, LineItem} from "@/types/invoice";
+import { ExtraImage, InvoiceData, InvoiceTheme, LineItem } from "@/types/invoice";
 
 
 const hbs = Handlebars.create();
@@ -29,6 +29,55 @@ const STYLES_CSS = path.join(TPL_DIR, "styles.css");
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
+function defaultTheme(): InvoiceTheme {
+  return {
+    colors: {
+      primary: "#111827",
+      secondary: "#6b7280",
+      accent: "#0ea5e9",
+      text: "#111827",
+      mutedText: "#6b7280",
+      background: "#ffffff",
+      surface: "#f7f7f8",
+      border: "#e5e7eb",
+      gradientFrom: "#111827",
+      gradientTo: "#0ea5e9",
+    },
+    layout: { roundness: 16 },
+  };
+}
+
+function clampRoundness(v: unknown): number {
+  const n = typeof v === "number" ? v : parseInt(String(v ?? ""), 10);
+  if (!Number.isFinite(n)) return 16;
+  return Math.max(0, Math.min(24, Math.floor(n)));
+}
+
+function themeToCssVars(theme?: InvoiceTheme): string {
+  const t = theme ?? defaultTheme();
+  const c = t.colors as any;
+  const r = clampRoundness(t.layout?.roundness);
+
+  const primary = c.primary || "#111827";
+  const accent = c.accent || "#0ea5e9";
+
+  const vars: string[] = [
+    `--c-primary:${primary}`,
+    `--c-secondary:${c.secondary || "#6b7280"}`,
+    `--c-accent:${accent}`,
+    `--c-text:${c.text || "#111827"}`,
+    `--c-muted:${c.mutedText || "#6b7280"}`,
+    `--c-bg:${c.background || "#ffffff"}`,
+    `--c-surface:${c.surface || "#f7f7f8"}`,
+    `--c-border:${c.border || "#e5e7eb"}`,
+    `--g-from:${(c.gradientFrom && String(c.gradientFrom).trim()) ? c.gradientFrom : primary}`,
+    `--g-to:${(c.gradientTo && String(c.gradientTo).trim()) ? c.gradientTo : accent}`,
+    `--round:${r}px`,
+  ];
+
+  return vars.join(";");
+}
+
 function fmtMoney(n: number, currency: string, lang: Lang) {
   const locale =
     lang === "de" ? "de-DE" :
@@ -47,11 +96,20 @@ function toDisplayDate(iso: string, lang: Lang) {
   return format(d, "dd.MM.yyyy", { locale: LOCALES[lang] });
 }
 
-function fileUrl(p?: string) {
+function fileUrl(p?: string, baseUrl?: string) {
   if (!p) return undefined;
-  // If it's already a web URL or data-uri, just return as-is (Chromium can fetch it)
-  if (/^(https?:|data:)/i.test(p)) return p;
-  const abs = path.resolve(p);
+  const s = String(p).trim();
+  if (!s) return undefined;
+
+  // Already a web URL or data-uri (Chromium can fetch it)
+  if (/^(https?:|data:|file:)/i.test(s)) return s;
+
+  // If it looks like a site-relative path, keep it for browser preview,
+  // or make it absolute for headless PDF when baseUrl is provided.
+  if (s.startsWith("/")) return baseUrl ? `${baseUrl}${s}` : s;
+
+  // Otherwise treat as a filesystem path
+  const abs = path.resolve(s);
   return pathToFileURL(abs).toString();
 }
 
@@ -82,9 +140,11 @@ export interface BuildHtmlOptions {
   language?: Lang;
   /** Inline styles into <style>…</style> (recommended for PDF). */
   inlineStyles?: boolean;
+  /** Base URL (e.g. https://host) used to turn relative /api/... paths into absolute URLs for headless PDF. */
+  baseUrl?: string;
 }
 
-export function calcModel(data: InvoiceData, lang: Lang) {
+export function calcModel(data: InvoiceData, lang: Lang, baseUrl?: string) {
   const rows = (data.items || []).map((it: LineItem) => {
     const net = r2((it.qty || 0) * (it.unitPrice || 0));
     return {
@@ -133,15 +193,16 @@ export function calcModel(data: InvoiceData, lang: Lang) {
   if (data.reverseCharge) notes.push("Steuerschuldnerschaft des Leistungsempfängers (Reverse-Charge).");
 
   const extraImages = (data.extraImages ?? []).map((img: ExtraImage) => ({
-    src: fileUrl(img.path),
+    src: fileUrl(img.path, baseUrl),
     caption: img.caption,
     maxWidthPx: img.maxWidthPx ?? 480,
   }));
 
   return {
     language: lang,
+    themeStyle: themeToCssVars((data as any).theme),
     number: data.number,
-    company: { ...data.company, logoPath: fileUrl(data.company.logoPath) },
+    company: { ...data.company, logoPath: fileUrl(data.company.logoPath, baseUrl), logoUrl: fileUrl((data.company as any).logoUrl, baseUrl) },
     client: data.client,
     issueDate,
     servicePeriod: data.servicePeriod
@@ -180,7 +241,7 @@ export async function renderInvoiceHtml(data: InvoiceData, opts: BuildHtmlOption
   const styles = opts.inlineStyles ? await loadStylesInline() : "";
 
   // data model
-  const model = calcModel(data, lang) as any;
+  const model = calcModel(data, lang, opts.baseUrl) as any;
   model.styles = styles; // base.hbs checks {{#if styles}} …
 
   return tpl(model);

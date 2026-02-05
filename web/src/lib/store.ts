@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import {Lang} from "../../server/lib/i18n";
-import {Currency, ExtraImage, ExtraTable, InvoiceData, LineItem, NumberingMode} from "@/types/invoice";
+import {Currency, ExtraImage, ExtraTable, InvoiceData, InvoiceTheme, LineItem, NumberingMode} from "@/types/invoice";
 
 
 
@@ -31,6 +31,21 @@ export function makeEmptyInvoice(partial?: Partial<InvoiceData>): InvoiceData {
     reverseCharge: partial?.reverseCharge ?? false,
     kleinunternehmer: partial?.kleinunternehmer ?? false,
     notes: partial?.notes ?? [],
+    theme: partial?.theme ?? {
+      colors: {
+        primary: "#111827",
+        secondary: "#6b7280",
+        accent: "#0ea5e9",
+        text: "#111827",
+        mutedText: "#6b7280",
+        background: "#ffffff",
+        surface: "#f7f7f8",
+        border: "#e5e7eb",
+        gradientFrom: "#111827",
+        gradientTo: "#0ea5e9",
+      },
+      layout: { roundness: 16 },
+    },
     company: partial?.company ?? { name: "", addressLines: [] },
     client: partial?.client ?? { name: "", addressLines: [] },
     items: partial?.items ?? [],
@@ -75,6 +90,9 @@ export interface AppState {
   setWatermark: (text?: string) => void;
   setReverseCharge: (v: boolean) => void;
   setKleinunternehmer: (v: boolean) => void;
+
+  applyThemePreset: (preset: "receiptPro" | "classic") => void;
+  clearTheme: () => void;
 
   // company / client
   patchCompany: (patch: Partial<InvoiceData["company"]>) => void;
@@ -129,6 +147,30 @@ export const useStore = create<AppState>()(
       }, dirty: true }),
       setReverseCharge: (v) => set({ invoice: { ...get().invoice, reverseCharge: v }, dirty: true }),
       setKleinunternehmer: (v) => set({ invoice: { ...get().invoice, kleinunternehmer: v }, dirty: true }),
+
+      applyThemePreset: (preset) => {
+        if (preset === "classic") {
+          set({ invoice: { ...get().invoice, theme: undefined }, dirty: true });
+          return;
+        }
+        const theme: InvoiceTheme = {
+          colors: {
+            primary: "#0B1220",
+            secondary: "#6B7280",
+            accent: "#00C2FF",
+            text: "#0B1220",
+            mutedText: "#6B7280",
+            background: "#FFFFFF",
+            surface: "#F6F8FB",
+            border: "#E6EAF0",
+            gradientFrom: "#0B1220",
+            gradientTo: "#00C2FF",
+          },
+          layout: { roundness: 18 },
+        };
+        set({ invoice: { ...get().invoice, theme }, dirty: true });
+      },
+      clearTheme: () => set({ invoice: { ...get().invoice, theme: undefined }, dirty: true }),
 
       patchCompany: (patch) => set({ invoice: { ...get().invoice, company: { ...get().invoice.company, ...patch } }, dirty: true }),
       patchClient: (patch) => set({ invoice: { ...get().invoice, client: { ...get().invoice.client, ...patch } }, dirty: true }),

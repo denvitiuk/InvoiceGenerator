@@ -1,5 +1,3 @@
-
-
 // Shared invoice types for the frontend (mirror of server/types/invoice.ts)
 // If you change these, keep server/types/invoice.ts in sync.
 
@@ -18,7 +16,8 @@ export interface CompanyInfo {
     iban?: string;
     bic?: string;
     bankName?: string;
-    logoPath?: string; // relative "/assets/..." or absolute file URL
+    logoPath?: string; // "/assets/..." from /upload (recommended) or absolute URL/data URL
+    logoUrl?: string;  // optional external/logo URL (future-proof; normalized via fileUrl on server)
 }
 
 export interface ClientInfo {
@@ -47,6 +46,29 @@ export interface ExtraImage {
     maxWidthPx?: number;
 }
 
+export interface ThemeColors {
+    primary: string;     // main brand color
+    secondary: string;   // secondary brand color
+    accent: string;      // highlights/badges
+
+    text: string;        // main text color
+    mutedText: string;   // secondary text
+
+    background: string;  // page background
+    surface: string;     // cards/boxes/table headers
+    border: string;      // borders/dividers
+
+    gradientFrom?: string; // optional header gradient start
+    gradientTo?: string;   // optional header gradient end
+}
+
+export interface InvoiceTheme {
+    colors: ThemeColors;
+    layout?: {
+        roundness: number; // 0..24 px
+    };
+}
+
 export interface InvoiceData {
     language?: Lang;   // language of the invoice output
     currency: Currency;
@@ -57,6 +79,7 @@ export interface InvoiceData {
     reverseCharge?: boolean; // Reverse-charge note
     kleinunternehmer?: boolean; // §19 UStG note
     notes?: string[];
+    theme?: InvoiceTheme;
 
     company: CompanyInfo;
     client: ClientInfo;
@@ -108,7 +131,7 @@ export interface RenderAllResponse {
 
 export interface UploadResponse {
     ok: boolean;
-    path: string; // "/assets/uploads/…" to use in images or company.logoPath
+    path: string; // "/assets/uploads/..." to use in extraImages[].path or company.logoPath
     name: string;
     size: number;
     mimetype: string;

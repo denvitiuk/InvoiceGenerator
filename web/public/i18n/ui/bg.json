@@ -76,5 +76,13 @@
   "ustId": "ДДС №",
   "steuerNr": "Данъчен №",
   "company_name": "Име на фирмата",
-  "client_name": "Име на клиента"
+  "client_name": "Име на клиента",
+  "add_logo": "Добави лого",
+  "remove_logo": "Премахни лого",
+  "logo_selected": "Логото е избрано",
+  "logo_hint": "PNG/JPG/SVG/WEBP",
+
+  "theme_receipt_pro": "Receipt Pro",
+  "theme_classic": "Класически",
+  "theme_palette": "Палитра"
 }

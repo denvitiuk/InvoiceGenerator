@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="/templates/styles.css" />
   {{/if}}
 </head>
-<body>
+<body style="{{themeStyle}}">
 
   {{#if watermark}}
     <div class="watermark">{{watermark}}</div>
@@ -24,8 +24,11 @@
     </div>
     {{#if company.logoPath}}
       <img class="logo" src="{{company.logoPath}}" alt="logo" />
+    {{else if company.logoUrl}}
+      <img class="logo" src="{{company.logoUrl}}" alt="logo" />
     {{/if}}
   </header>
+  <div class="header-accent"></div>
 
   <section class="two-col">
     <div class="col box">
@@ -61,7 +64,7 @@
       <div class="col box">
         {{#if paymentTerms}}
           <div class="label">{{t "paymentTerms"}}</div>
-          <div>{{paymentTerms}}</div>
+          <div class="accent">{{paymentTerms}}</div>
         {{/if}}
         {{#if company.iban}}
           <div style="margin-top:6px;">
