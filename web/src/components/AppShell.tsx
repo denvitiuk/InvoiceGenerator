@@ -886,7 +886,7 @@ export default function AppShell() {
                 Accent{" "}
                 <input
                   type="color"
-                  value={(invoice as any)?.theme?.colors?.accent || "#00C2FF"}
+                  value={(invoice as any)?.theme?.colors?.accent || "#0B1220"}
                   onChange={(e) => patchThemeColors?.({ accent: e.target.value })}
                   style={{ marginLeft: 6 }}
                 />
@@ -956,7 +956,7 @@ export default function AppShell() {
                 Grad to{" "}
                 <input
                   type="color"
-                  value={(invoice as any)?.theme?.colors?.gradientTo || (invoice as any)?.theme?.colors?.accent || "#00C2FF"}
+                  value={(invoice as any)?.theme?.colors?.gradientTo || (invoice as any)?.theme?.colors?.accent || "#0B1220"}
                   onChange={(e) => patchThemeColors?.({ gradientTo: e.target.value })}
                   style={{ marginLeft: 6 }}
                 />

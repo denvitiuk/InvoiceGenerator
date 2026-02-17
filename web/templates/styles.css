@@ -8,7 +8,7 @@
     /* Fallbacks (used if template does not inject themeStyle) */
     --c-primary: #111827;
     --c-secondary: #6b7280;
-    --c-accent: #0ea5e9;
+    --c-accent: #111827;
 
     --c-text: #111827;
     --c-muted: #6b7280;
@@ -77,7 +77,9 @@ h2 {
     break-inside: avoid;
 }
 .label { font-size: 12px; color: var(--c-muted); }
-.value { font-weight: 600; }
+.value { font-weight: 600; color: var(--c-text); }
+/* In info boxes (like Zahlungsziel), values should not become link-blue when marked as accent */
+.box .value.accent { color: var(--c-text); }
 
 /* Tables */
 table { width: 100%; border-collapse: collapse; margin-top: 8px; }
