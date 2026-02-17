@@ -1,5 +1,3 @@
-
-
 import React from "react";
 import { useT } from "../../lib/i18n";
 import { useStore } from "../../lib/store";
@@ -104,36 +102,39 @@ export default function ItemsTable() {
                 <label className="row" style={{ gap: 6 }}>
                   <span className="muted" style={{ minWidth: 86 }}>{t("qty")}</span>
                   <input
-                    type="number"
-                    min={0}
-                    step={0.01}
+                    type="text"
+                    inputMode="numeric"
+                    className="no-spin"
                     value={it.qty ?? 0}
                     onChange={(e) => update(idx, { qty: num(e.target.value) })}
-                    style={{ width: 120 }}
+                    onWheel={(e) => (e.currentTarget as HTMLInputElement).blur()}
+                    style={{ width: 140 }}
                   />
                 </label>
 
                 <label className="row" style={{ gap: 6 }}>
                   <span className="muted" style={{ minWidth: 86 }}>{t("unit_price")}</span>
                   <input
-                    type="number"
-                    min={0}
-                    step={0.01}
+                    type="text"
+                    inputMode="decimal"
+                    className="no-spin"
                     value={it.unitPrice ?? 0}
                     onChange={(e) => update(idx, { unitPrice: num(e.target.value) })}
-                    style={{ width: 160 }}
+                    onWheel={(e) => (e.currentTarget as HTMLInputElement).blur()}
+                    style={{ width: 180 }}
                   />
                 </label>
 
                 <label className="row" style={{ gap: 6 }}>
                   <span className="muted" style={{ minWidth: 86 }}>{t("vat_rate")}</span>
                   <input
-                    type="number"
-                    min={0}
-                    step={1}
+                    type="text"
+                    inputMode="numeric"
+                    className="no-spin"
                     value={it.vatRate ?? 0}
                     onChange={(e) => update(idx, { vatRate: num(e.target.value) })}
-                    style={{ width: 120 }}
+                    onWheel={(e) => (e.currentTarget as HTMLInputElement).blur()}
+                    style={{ width: 140 }}
                   />
                 </label>
 

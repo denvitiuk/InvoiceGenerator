@@ -44,6 +44,16 @@ export default function AppShell() {
   const patchThemeColors = useStore((s: any) => s.patchThemeColors);
   const setThemeRoundness = useStore((s: any) => s.setThemeRoundness);
 
+  // Helper to patch theme.layout (logo alignment, size, etc)
+  const patchThemeLayout = React.useCallback(
+    (layoutPatch: any) => {
+      const curTheme: any = (invoice as any)?.theme || {};
+      const curLayout: any = curTheme.layout || {};
+      patchInvoice({ theme: { ...curTheme, layout: { ...curLayout, ...layoutPatch } } } as any);
+    },
+    [invoice, patchInvoice]
+  );
+
   const [showPalette, setShowPalette] = useState(false);
 
   // Logo upload
@@ -462,7 +472,45 @@ export default function AppShell() {
               {t("remove_logo") || "Remove logo"}
             </button>
             <div style={{ fontSize: 12, opacity: 0.7 }}>
-              {(invoice.company as any)?.logoPath ? "Logo selected" : (t("logo_hint") || "PNG/JPG/SVG")}
+              {(invoice.company as any)?.logoPath ? (t("logo.selected") || "Logo selected") : (t("logo_hint") || "PNG/JPG/SVG")}
+            </div>
+            <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+              <label style={{ fontSize: 12, opacity: 0.85, display: "flex", alignItems: "center", gap: 6 }}>
+                {t("logo.section") || "Logo"}
+                <select
+                  value={((invoice as any)?.theme?.layout?.logoAlign || "left") as any}
+                  onChange={(e) => patchThemeLayout({ logoAlign: e.target.value })}
+                  style={{ padding: "8px 10px", borderRadius: 12 }}
+                  title={t("logo.align") || "Logo alignment"}
+                >
+                  <option value="left">{t("logo.align_left") || "Left"}</option>
+                  <option value="center">{t("logo.align_center") || "Center"}</option>
+                  <option value="right">{t("logo.align_right") || "Right"}</option>
+                </select>
+              </label>
+
+              <label style={{ fontSize: 12, opacity: 0.85, display: "flex", alignItems: "center", gap: 6 }}>
+                {t("logo.size") || "Size"}
+                <input
+                  type="range"
+                  min={24}
+                  max={140}
+                  value={((invoice as any)?.theme?.layout?.logoHeight ?? 56) as any}
+                  onChange={(e) => patchThemeLayout({ logoHeight: parseInt(e.target.value, 10) })}
+                />
+                <span style={{ fontSize: 12, opacity: 0.85, minWidth: 44, textAlign: "right" }}>
+                  {((invoice as any)?.theme?.layout?.logoHeight ?? 56)}px
+                </span>
+              </label>
+
+              <button
+                type="button"
+                onClick={() => patchThemeLayout({ logoAlign: "left", logoHeight: 56 })}
+                style={{ padding: "10px 12px", borderRadius: 14, opacity: 0.85 }}
+                title={t("logo.reset") || "Reset"}
+              >
+                {t("logo.reset") || "Reset"}
+              </button>
             </div>
           </div>
           <textarea
@@ -799,12 +847,51 @@ export default function AppShell() {
         <section style={{ marginTop: 16 }}>
           <h3 style={{ marginTop: 0 }}>{t("section_items")}</h3>
           {invoice.items.map((it, i) => (
-            <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 0.6fr 0.6fr 0.8fr 0.6fr auto", gap: 6, alignItems: "center", marginBottom: 6 }}>
+            <div
+              key={i}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "2.2fr 110px 110px 140px 110px auto",
+                gap: 8,
+                alignItems: "center",
+                marginBottom: 6,
+              }}
+            >
               <input value={it.description} onChange={(e) => updateItem(i, { description: e.target.value })} placeholder={t("description")} />
-              <input type="number" step="0.01" value={it.qty} onChange={(e) => updateItem(i, { qty: parseFloat(e.target.value || "0") })} placeholder={t("qty")} />
+              <input
+                type="text"
+                inputMode="numeric"
+                value={String(it.qty ?? "")}
+                onChange={(e) => {
+                  const v = (e.target.value || "").replace(",", ".");
+                  const n = v.trim() === "" ? 0 : parseFloat(v);
+                  updateItem(i, { qty: Number.isFinite(n) ? n : 0 });
+                }}
+                placeholder={t("qty")}
+              />
               <input value={it.unit || ""} onChange={(e) => updateItem(i, { unit: e.target.value })} placeholder={t("unit")} />
-              <input type="number" step="0.01" value={it.unitPrice} onChange={(e) => updateItem(i, { unitPrice: parseFloat(e.target.value || "0") })} placeholder={t("unit_price")} />
-              <input type="number" step="0.1" value={it.vatRate} onChange={(e) => updateItem(i, { vatRate: parseFloat(e.target.value || "0") })} placeholder={t("vat_rate")} />
+              <input
+                type="text"
+                inputMode="decimal"
+                value={String(it.unitPrice ?? "")}
+                onChange={(e) => {
+                  const v = (e.target.value || "").replace(",", ".");
+                  const n = v.trim() === "" ? 0 : parseFloat(v);
+                  updateItem(i, { unitPrice: Number.isFinite(n) ? n : 0 });
+                }}
+                placeholder={t("unit_price")}
+              />
+              <input
+                type="text"
+                inputMode="numeric"
+                value={String(it.vatRate ?? "")}
+                onChange={(e) => {
+                  const v = (e.target.value || "").replace(",", ".");
+                  const n = v.trim() === "" ? 0 : parseFloat(v);
+                  updateItem(i, { vatRate: Number.isFinite(n) ? n : 0 });
+                }}
+                placeholder={t("vat_rate")}
+              />
               <button onClick={() => removeItem(i)}>{t("remove")}</button>
             </div>
           ))}

@@ -88,6 +88,15 @@
 
   "theme_receipt_pro": "Receipt Pro",
   "theme_classic": "Класичний",
-  "theme_palette": "Палітра"
+  "theme_palette": "Палітра",
+  "logo.section": "Логотип",
+  "logo.align": "Вирівнювання",
+  "logo.align_left": "Ліворуч",
+  "logo.align_center": "По центру",
+  "logo.align_right": "Праворуч",
+  "logo.size": "Розмір",
+  "logo.selected": "Логотип вибрано",
+  "logo.reset": "Скинути",
+  "logo.remove": "Видалити логотип"
 
 }

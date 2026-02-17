@@ -62,11 +62,17 @@ export interface ThemeColors {
     gradientTo?: string;   // optional header gradient end
 }
 
+export type LogoAlign = "left" | "center" | "right";
+
+export type InvoiceThemeLayout = {
+    roundness: number; // 0..24 px
+    logoAlign?: LogoAlign;
+    logoHeight?: number; // px
+};
+
 export interface InvoiceTheme {
     colors: ThemeColors;
-    layout?: {
-        roundness: number; // 0..24 px
-    };
+    layout?: InvoiceThemeLayout;
 }
 
 export interface InvoiceData {

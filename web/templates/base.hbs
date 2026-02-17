@@ -22,11 +22,13 @@
       <h1>{{t "invoice"}} {{number}}</h1>
       <div class="muted">{{company.name}}</div>
     </div>
-    {{#if company.logoPath}}
-      <img class="logo" src="{{company.logoPath}}" alt="logo" />
-    {{else if company.logoUrl}}
-      <img class="logo" src="{{company.logoUrl}}" alt="logo" />
-    {{/if}}
+    <div class="logo-wrap">
+      {{#if company.logoPath}}
+        <img class="logo" src="{{company.logoPath}}" alt="logo" />
+      {{else if company.logoUrl}}
+        <img class="logo" src="{{company.logoUrl}}" alt="logo" />
+      {{/if}}
+    </div>
   </header>
   <div class="header-accent"></div>
 

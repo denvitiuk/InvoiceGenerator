@@ -84,5 +84,16 @@
 
   "theme_receipt_pro": "Receipt Pro",
   "theme_classic": "Classic",
-  "theme_palette": "Palette"
+  "theme_palette": "Palette",
+  "logo.section": "Logo",
+  "logo.align": "Alignment",
+  "logo.align_left": "Left",
+  "logo.align_center": "Center",
+  "logo.align_right": "Right",
+  "logo.size": "Size",
+  "logo.selected": "Logo selected",
+  "logo.reset": "Reset",
+  "logo.remove": "Remove logo"
+
+
 }

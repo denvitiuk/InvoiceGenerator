@@ -43,7 +43,7 @@ function defaultTheme(): InvoiceTheme {
       gradientFrom: "#111827",
       gradientTo: "#0ea5e9",
     },
-    layout: { roundness: 16 },
+    layout: { roundness: 16, logoAlign: "left", logoHeight: 56 },
   };
 }
 
@@ -57,6 +57,26 @@ function themeToCssVars(theme?: InvoiceTheme): string {
   const t = theme ?? defaultTheme();
   const c = t.colors as any;
   const r = clampRoundness(t.layout?.roundness);
+
+  // Logo layout controls (optional)
+  const layout: any = t.layout as any;
+  const logoHeightRaw = layout?.logoHeight;
+  const logoHeightNum = typeof logoHeightRaw === "number" ? logoHeightRaw : parseInt(String(logoHeightRaw ?? ""), 10);
+  // Cap logo height in the PDF to avoid layout breakage (user UI may allow bigger).
+  const logoH = Number.isFinite(logoHeightNum) ? Math.max(16, Math.min(120, Math.floor(logoHeightNum))) : 56;
+
+  const logoAlign = String(layout?.logoAlign ?? "left").toLowerCase();
+  const logoJustify = logoAlign === "center" ? "center" : logoAlign === "right" ? "flex-end" : "flex-start";
+
+  // Reserve a top band for centered logo so it doesn't overlap the header title/content.
+  // Keep a hard upper bound so users can't "eat" the whole first page.
+  const logoReserve = logoAlign === "center"
+    ? Math.max(0, Math.min(140, logoH + 16))
+    : 0;
+
+  // Title ("Rechnung") scales with the same slider as the logo.
+  // Default logo (56px) => ~24px title, bigger logo => bigger title (capped).
+  const h1Size = Math.max(20, Math.min(34, Math.round(12 + logoH * 0.22)));
 
   const primary = c.primary || "#111827";
   const accent = c.accent || "#0ea5e9";
@@ -73,6 +93,10 @@ function themeToCssVars(theme?: InvoiceTheme): string {
     `--g-from:${(c.gradientFrom && String(c.gradientFrom).trim()) ? c.gradientFrom : primary}`,
     `--g-to:${(c.gradientTo && String(c.gradientTo).trim()) ? c.gradientTo : accent}`,
     `--round:${r}px`,
+    `--logo-justify:${logoJustify}`,
+    `--logo-h:${logoH}px`,
+    `--logo-reserve:${logoReserve}px`,
+    `--h1-size:${h1Size}px`,
   ];
 
   return vars.join(";");

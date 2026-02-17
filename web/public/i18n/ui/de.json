@@ -84,6 +84,16 @@
 
   "theme_receipt_pro": "Receipt Pro",
   "theme_classic": "Klassisch",
-  "theme_palette": "Palette"
+  "theme_palette": "Palette",
+  "logo.section": "Logo",
+  "logo.align": "Ausrichtung",
+  "logo.align_left": "Links",
+  "logo.align_center": "Zentriert",
+  "logo.align_right": "Rechts",
+  "logo.size": "Größe",
+  "logo.selected": "Logo ausgewählt",
+  "logo.reset": "Zurücksetzen",
+  "logo.remove": "Logo entfernen"
+
 
 }

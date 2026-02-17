@@ -84,6 +84,16 @@
 
   "theme_receipt_pro": "Receipt Pro",
   "theme_classic": "Klasik",
-  "theme_palette": "Palet"
+  "theme_palette": "Palet",
+  "logo.section": "Logo",
+  "logo.align": "Hizalama",
+  "logo.align_left": "Sol",
+  "logo.align_center": "Orta",
+  "logo.align_right": "Sağ",
+  "logo.size": "Boyut",
+  "logo.selected": "Logo seçildi",
+  "logo.reset": "Sıfırla",
+  "logo.remove": "Logoyu kaldır"
+
 
 }
