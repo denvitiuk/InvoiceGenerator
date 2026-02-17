@@ -54,12 +54,16 @@ function clampRoundness(v: unknown): number {
 }
 
 function themeToCssVars(theme?: InvoiceTheme): string {
-  const t = theme ?? defaultTheme();
-  const c = t.colors as any;
-  const r = clampRoundness(t.layout?.roundness);
+  const base = defaultTheme();
+  const t = theme ?? base;
+
+  // If a partial theme is provided (e.g. only layout), ensure colors are always present.
+  const c = { ...(base.colors as any), ...((t as any).colors ?? {}) } as any;
+
+  const layout: any = { ...(base.layout as any), ...((t as any).layout ?? {}) } as any;
+  const r = clampRoundness(layout?.roundness);
 
   // Logo layout controls (optional)
-  const layout: any = t.layout as any;
   const logoHeightRaw = layout?.logoHeight;
   const logoHeightNum = typeof logoHeightRaw === "number" ? logoHeightRaw : parseInt(String(logoHeightRaw ?? ""), 10);
   // Cap logo height in the PDF to avoid layout breakage (user UI may allow bigger).

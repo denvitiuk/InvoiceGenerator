@@ -145,7 +145,7 @@ export async function renderAllBlob(
 export async function uploadFile(file: File): Promise<UploadResponse> {
   const form = new FormData();
   form.append("file", file);
-  const resp = await apiFetch("/upload", { method: "POST", body: form });
+  const resp = await apiFetch("/api/upload", { method: "POST", body: form });
   return (await resp.json()) as UploadResponse;
 }
 
