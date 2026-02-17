@@ -7,7 +7,7 @@ import {InvoiceData, RenderAllResponse, RenderResponse, UploadResponse} from "@/
 export type Lang = "en" | "de" | "ru" | "bg" | "tr" | "uk";
 
 // Optional override (useful for self-hosting behind a different domain).
-// In Next, only NEXT_PUBLIC_* is exposed to the browser.
+// In Next,в only NEXT_PUBLIC_* is exposed to the browser.
 const API_BASE: string = (process.env.NEXT_PUBLIC_API_BASE || "").trim();
 
 function normalizeApiPath(p: string): string {
