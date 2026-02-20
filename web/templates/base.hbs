@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{{t "invoice"}} {{number}}</title>
+  <title>{{number}}</title>
   {{!-- Если backend подставляет стили строкой -> встраиваем, иначе подключаем файл --}}
   {{#if styles}}
     <style>{{{styles}}}</style>
@@ -19,7 +19,7 @@
 
   <header class="header">
     <div>
-      <h1>{{t "invoice"}} {{number}}</h1>
+      <h1>{{number}}</h1>
       <div class="muted">{{company.name}}</div>
     </div>
     <div class="logo-wrap">
@@ -62,21 +62,6 @@
         <div>{{servicePeriod.from}} – {{servicePeriod.to}}</div>
       {{/if}}
     </div>
-    {{#if showPaymentBox}}
-      <div class="col box">
-        {{#if paymentTerms}}
-          <div class="label">{{t "paymentTerms"}}</div>
-          <div class="payment-terms">{{paymentTerms}}</div>
-        {{/if}}
-        {{#if company.iban}}
-          <div style="margin-top:6px;">
-            <div><span class="label">IBAN:</span> {{company.iban}}</div>
-            {{#if company.bic}}<div><span class="label">BIC:</span> {{company.bic}}</div>{{/if}}
-            {{#if company.bankName}}<div><span class="label">{{t "bank"}}</span> {{company.bankName}}</div>{{/if}}
-          </div>
-        {{/if}}
-      </div>
-    {{/if}}
   </section>
 
   <h2>{{t "items"}}</h2>
@@ -114,6 +99,22 @@
       <tr><td><strong>{{t "total"}}</strong></td><td class="right"><strong>{{grandTotal}}</strong></td></tr>
     </tbody>
   </table>
+
+  {{#if showPaymentBox}}
+    <div style="margin-top:12px; max-width: 60%;">
+      {{#if paymentTerms}}
+        <div class="label">{{t "paymentTerms"}}</div>
+        <div class="payment-terms">{{paymentTerms}}</div>
+      {{/if}}
+      {{#if company.iban}}
+        <div style="margin-top:6px;">
+          <div><span class="label">IBAN:</span> {{company.iban}}</div>
+          {{#if company.bic}}<div><span class="label">BIC:</span> {{company.bic}}</div>{{/if}}
+          {{#if company.bankName}}<div><span class="label">{{t "bank"}}</span> {{company.bankName}}</div>{{/if}}
+        </div>
+      {{/if}}
+    </div>
+  {{/if}}
 
   {{#if notes.length}}
     <h2>{{t "notes"}}</h2>

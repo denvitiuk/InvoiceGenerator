@@ -20,7 +20,7 @@
     --g-from: var(--c-primary);
     --g-to: var(--c-accent);
 
-    --round: 8px;
+    --round: 0px;
 }
 
 html, body {
@@ -64,7 +64,7 @@ h2 {
 }
 .header-accent {
     height: 6px;
-    border-radius: 999px;
+    border-radius: 0;
     background: linear-gradient(90deg, var(--g-from), var(--g-to));
     /* Always keep enough vertical space so the logo (any alignment) can't overlap the accent line */
     margin: calc(max(var(--logo-reserve, 0px), calc(var(--logo-h, 56px) + 12px)) - 16px) 0 18px 0;
@@ -106,9 +106,10 @@ h2 {
 .two-col { display: flex; gap: 24px; }
 .col { flex: 1; }
 .box {
-    border: 1px solid var(--c-border);
-    border-radius: var(--round);
-    padding: 12px;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    background: transparent;
     break-inside: avoid;
 }
 .label { font-size: 12px; color: var(--c-muted); }
