@@ -95,5 +95,21 @@
   "logo.reset": "Sıfırla",
   "logo.remove": "Logoyu kaldır",
   "object": "Proje / Şantiye",
-  "object_placeholder": "örn. proje / şantiye"
+  "object_placeholder": "örn. proje / şantiye",
+  "templates": "Şablonlar",
+  "template_select": "Seç…",
+  "template_apply": "Uygula",
+  "template_save_as": "Farklı kaydet…",
+  "template_delete": "Sil",
+  "template_rename": "Yeniden adlandır",
+  "template_update": "Güncelle",
+  "template_default": "Varsayılan yap",
+  "template_default_set": "Varsayılan yap",
+  "template_default_clear": "Varsayılan ✓",
+
+  "template_name_prompt": "Şablon adı",
+  "template_applied": "Şablon uygulandı",
+  "template_delete_confirm": "Şablon silinsin mi?",
+  "template_rename_prompt": "Şablonu yeniden adlandır",
+  "template_update_confirm": "Seçili şablon mevcut ayarlarla güncellensin mi?"
 }

@@ -14,7 +14,78 @@ import {InvoiceData, NumberingMode} from "@/types/invoice";
 
 const LANGS: Lang[] = ["en", "de", "ru", "bg", "tr","uk"];
 const CURRENCIES = ["EUR", "USD", "GBP", "UAH"] as const;
+
 const dbg = (...a: any[]) => console.log("[AppShell]", ...a);
+
+type InvoiceTemplate = {
+  id: string;
+  name: string;
+  updatedAt: string;
+  invoiceLang: Lang;
+  // We store only "design" scope for now (safe apply): company + meta + theme + numbering/file name preferences.
+  data: Partial<InvoiceData>;
+};
+
+const TEMPLATES_LS_KEY = "invoice:templates";
+
+const TEMPLATES_DEFAULT_ID_KEY = "invoice:templates:defaultId";
+const INVOICE_STORE_LS_KEY = "invoice.store"; // zustand persist key (see web/src/lib/store.ts)
+
+function readDefaultTemplateId(): string {
+  try {
+    return localStorage.getItem(TEMPLATES_DEFAULT_ID_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function writeDefaultTemplateId(id: string) {
+  try {
+    if (!id) localStorage.removeItem(TEMPLATES_DEFAULT_ID_KEY);
+    else localStorage.setItem(TEMPLATES_DEFAULT_ID_KEY, id);
+  } catch {
+    // ignore
+  }
+}
+
+function safeUuid(): string {
+  // crypto.randomUUID is available in modern browsers; fall back to a simple id.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const c: any = (globalThis as any).crypto;
+  if (c?.randomUUID) return c.randomUUID();
+  return `tpl_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
+function readTemplates(): InvoiceTemplate[] {
+  try {
+    const raw = localStorage.getItem(TEMPLATES_LS_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? (arr as InvoiceTemplate[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeTemplates(next: InvoiceTemplate[]) {
+  localStorage.setItem(TEMPLATES_LS_KEY, JSON.stringify(next));
+}
+
+function pickDesignTemplate(inv: InvoiceData): Partial<InvoiceData> {
+  // Intentionally excludes items, number, dates — safe to apply without losing work.
+  return {
+    company: inv.company,
+    client: inv.client,
+    currency: inv.currency,
+    dueDays: (inv as any).dueDays,
+    object: (inv as any).object,
+    theme: (inv as any).theme,
+    documentTitle: (inv as any).documentTitle,
+    showNumberInTitle: (inv as any).showNumberInTitle,
+    numberingMode: (inv as any).numberingMode,
+    fileName: (inv as any).fileName,
+  } as any;
+}
 
 export default function AppShell() {
   const t = useT();
@@ -54,7 +125,184 @@ export default function AppShell() {
     [invoice, patchInvoice]
   );
 
+
   const [showPalette, setShowPalette] = useState(false);
+
+  // Templates (localStorage) ---------------------------------------------
+  const [templates, setTemplates] = React.useState<InvoiceTemplate[]>(() => {
+    if (typeof window === "undefined") return [];
+    return readTemplates();
+  });
+  const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>("");
+  const [defaultTemplateId, setDefaultTemplateId] = React.useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    return readDefaultTemplateId();
+  });
+
+  function refreshTemplates() {
+    const next = readTemplates();
+    setTemplates(next);
+
+    // keep selection if it still exists
+    if (selectedTemplateId && !next.some((t) => t.id === selectedTemplateId)) {
+      setSelectedTemplateId("");
+    }
+
+    // keep default if it still exists
+    if (defaultTemplateId && !next.some((t) => t.id === defaultTemplateId)) {
+      writeDefaultTemplateId("");
+      setDefaultTemplateId("");
+    }
+  }
+
+  function onSaveTemplateAs() {
+    const name = (prompt(t("template_name_prompt") || "Template name", "") || "").trim();
+    if (!name) return;
+    const tpl: InvoiceTemplate = {
+      id: safeUuid(),
+      name,
+      updatedAt: new Date().toISOString(),
+      invoiceLang,
+      data: pickDesignTemplate(invoice),
+    };
+    const next = [tpl, ...templates].sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+    writeTemplates(next);
+    setTemplates(next);
+    setSelectedTemplateId(tpl.id);
+  }
+
+  function onApplyTemplate() {
+    const id = selectedTemplateId;
+    if (!id) return;
+    const tpl = templates.find((x) => x.id === id);
+    if (!tpl) return;
+
+    // Apply only the stored design scope; keep items/number/dates intact.
+    patchInvoice(tpl.data as any);
+    setInvoiceLang(tpl.invoiceLang);
+
+    // Ensure dueDays draft reflects applied template.
+    const v = (tpl.data as any)?.dueDays;
+    setDueDaysDraft(v === undefined || v === null || v === "" ? "" : String(v));
+
+    alert((t("template_applied") || "Template applied") + `: ${tpl.name}`);
+  }
+
+  function onDeleteTemplate() {
+    const id = selectedTemplateId;
+    if (!id) return;
+    const tpl = templates.find((x) => x.id === id);
+    if (!tpl) return;
+    const ok = confirm((t("template_delete_confirm") || "Delete template?") + `\n\n${tpl.name}`);
+    if (!ok) return;
+    const next = templates.filter((x) => x.id !== id);
+    writeTemplates(next);
+    setTemplates(next);
+    setSelectedTemplateId("");
+  }
+
+  function onRenameTemplate() {
+    const id = selectedTemplateId;
+    if (!id) return;
+    const tpl = templates.find((x) => x.id === id);
+    if (!tpl) return;
+    const nextName = (prompt(t("template_rename_prompt") || "Rename template", tpl.name) || "").trim();
+    if (!nextName) return;
+
+    const next = templates.map((x) => (x.id === id ? { ...x, name: nextName, updatedAt: new Date().toISOString() } : x));
+    writeTemplates(next);
+    setTemplates(next);
+  }
+
+  function onUpdateTemplate() {
+    const id = selectedTemplateId;
+    if (!id) return;
+    const tpl = templates.find((x) => x.id === id);
+    if (!tpl) return;
+
+    const ok = confirm((t("template_update_confirm") || "Update selected template with current settings?") + `\n\n${tpl.name}`);
+    if (!ok) return;
+
+    const updated: InvoiceTemplate = {
+      ...tpl,
+      updatedAt: new Date().toISOString(),
+      invoiceLang,
+      data: pickDesignTemplate(invoice),
+    };
+
+    const next = [updated, ...templates.filter((x) => x.id !== id)].sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+    writeTemplates(next);
+    setTemplates(next);
+    setSelectedTemplateId(updated.id);
+  }
+
+  function onToggleDefaultTemplate() {
+    const id = selectedTemplateId;
+    if (!id) return;
+    const next = defaultTemplateId === id ? "" : id;
+    writeDefaultTemplateId(next);
+    setDefaultTemplateId(next);
+  }
+
+  // Keep templates list fresh if user opens the app in multiple tabs.
+  React.useEffect(() => {
+    function onStorage(e: StorageEvent) {
+      if (e.key === TEMPLATES_LS_KEY) refreshTemplates();
+      if (e.key === TEMPLATES_DEFAULT_ID_KEY) {
+        setDefaultTemplateId(readDefaultTemplateId());
+      }
+    }
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTemplateId, templates]);
+
+  // Auto-apply default template ONLY when there is no persisted draft.
+  const didAutoApplyDefaultRef = React.useRef(false);
+  React.useEffect(() => {
+    if (didAutoApplyDefaultRef.current) return;
+    if (typeof window === "undefined") return;
+
+    // If there is a persisted invoice draft, never auto-apply.
+    const hasPersistedDraft = !!window.localStorage.getItem(INVOICE_STORE_LS_KEY);
+    if (hasPersistedDraft) {
+      didAutoApplyDefaultRef.current = true;
+      return;
+    }
+
+    // Only apply if invoice still looks empty (avoid overwriting user edits from a just-loaded JSON restore).
+    const looksEmpty =
+      (!invoice?.items || invoice.items.length === 0) &&
+      (!invoice?.number || String(invoice.number).trim() === "") &&
+      (!invoice?.company?.name || String(invoice.company.name).trim() === "") &&
+      (!invoice?.client?.name || String(invoice.client.name).trim() === "");
+
+    if (!looksEmpty) {
+      didAutoApplyDefaultRef.current = true;
+      return;
+    }
+
+    const id = defaultTemplateId;
+    if (!id) {
+      didAutoApplyDefaultRef.current = true;
+      return;
+    }
+
+    const tpl = templates.find((x) => x.id === id);
+    if (!tpl) {
+      didAutoApplyDefaultRef.current = true;
+      return;
+    }
+
+    patchInvoice(tpl.data as any);
+    setInvoiceLang(tpl.invoiceLang);
+
+    // Ensure dueDays draft reflects applied template.
+    const v = (tpl.data as any)?.dueDays;
+    setDueDaysDraft(v === undefined || v === null || v === "" ? "" : String(v));
+
+    didAutoApplyDefaultRef.current = true;
+  }, [defaultTemplateId, templates, invoice]);
 
   // Logo upload
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -925,6 +1173,50 @@ export default function AppShell() {
 
         {/* Actions */}
         <section style={{ marginTop: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+              alignItems: "center",
+              padding: "10px 12px",
+              border: "1px solid #e5e7eb",
+              borderRadius: 14,
+            }}
+          >
+            <span style={{ fontSize: 12, opacity: 0.8, fontWeight: 600 }}>{t("templates") || "Templates"}</span>
+            <select
+              value={selectedTemplateId}
+              onChange={(e) => setSelectedTemplateId(e.target.value)}
+              style={{ minWidth: 180 }}
+              title={t("templates") || "Templates"}
+            >
+              <option value="">{t("template_select") || "Select…"}</option>
+              {templates.map((tpl) => (
+                <option key={tpl.id} value={tpl.id}>
+                  {tpl.id === defaultTemplateId ? "★ " : ""}{tpl.name}
+                </option>
+              ))}
+            </select>
+            <button type="button" onClick={onApplyTemplate} disabled={!selectedTemplateId}>
+              {t("template_apply") || "Apply"}
+            </button>
+            <button type="button" onClick={onSaveTemplateAs}>
+              {t("template_save_as") || "Save as…"}
+            </button>
+            <button type="button" onClick={onDeleteTemplate} disabled={!selectedTemplateId}>
+              {t("template_delete") || "Delete"}
+            </button>
+            <button type="button" onClick={onRenameTemplate} disabled={!selectedTemplateId}>
+              {t("template_rename") || "Rename"}
+            </button>
+            <button type="button" onClick={onUpdateTemplate} disabled={!selectedTemplateId}>
+              {t("template_update") || "Update"}
+            </button>
+            <button type="button" onClick={onToggleDefaultTemplate} disabled={!selectedTemplateId} title={t("template_default") || "Set default"}>
+              {selectedTemplateId && selectedTemplateId === defaultTemplateId ? (t("template_default_clear") || "Default ✓") : (t("template_default_set") || "Make default")}
+            </button>
+          </div>
           <button
             type="button"
             onClick={() => {

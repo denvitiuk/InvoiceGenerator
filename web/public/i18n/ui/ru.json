@@ -95,5 +95,21 @@
   "logo.reset": "Сброс",
   "logo.remove": "Удалить логотип",
   "object": "Объект",
-  "object_placeholder": "например проект / объект"
+  "object_placeholder": "например проект / объект",
+  "templates": "Шаблоны",
+  "template_select": "Выбрать…",
+  "template_apply": "Применить",
+  "template_save_as": "Сохранить как…",
+  "template_delete": "Удалить",
+  "template_rename": "Переименовать",
+  "template_update": "Обновить",
+  "template_default": "Сделать по умолчанию",
+  "template_default_set": "По умолчанию",
+  "template_default_clear": "По умолчанию ✓",
+
+  "template_name_prompt": "Название шаблона",
+  "template_applied": "Шаблон применён",
+  "template_delete_confirm": "Удалить шаблон?",
+  "template_rename_prompt": "Переименовать шаблон",
+  "template_update_confirm": "Обновить выбранный шаблон текущими настройками?"
 }

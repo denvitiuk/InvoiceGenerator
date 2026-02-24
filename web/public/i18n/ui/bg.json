@@ -95,6 +95,22 @@
   "logo.size": "Размер",
   "logo.selected": "Логотип выбран",
   "logo.reset": "Сброс",
-  "logo.remove": "Удалить логотип"
+  "logo.remove": "Удалить логотип",
+  "templates": "Шаблони",
+  "template_select": "Избери…",
+  "template_apply": "Приложи",
+  "template_save_as": "Запази като…",
+  "template_delete": "Изтрий",
+  "template_rename": "Преименувай",
+  "template_update": "Обнови",
+  "template_default": "Задай по подразбиране",
+  "template_default_set": "По подразбиране",
+  "template_default_clear": "По подразбиране ✓",
+
+  "template_name_prompt": "Име на шаблон",
+  "template_applied": "Шаблонът е приложен",
+  "template_delete_confirm": "Да се изтрие ли шаблонът?",
+  "template_rename_prompt": "Преименуване на шаблон",
+  "template_update_confirm": "Да се обнови ли избраният шаблон с текущите настройки?"
 
 }

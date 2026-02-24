@@ -99,5 +99,21 @@
   "logo.reset": "Скинути",
   "logo.remove": "Видалити логотип",
   "object": "Об’єкт",
-  "object_placeholder": "наприклад проєкт / об’єкт"
+  "object_placeholder": "наприклад проєкт / об’єкт",
+  "templates": "Шаблони",
+  "template_select": "Вибрати…",
+  "template_apply": "Застосувати",
+  "template_save_as": "Зберегти як…",
+  "template_delete": "Видалити",
+  "template_rename": "Перейменувати",
+  "template_update": "Оновити",
+  "template_default": "Зробити типовим",
+  "template_default_set": "Зробити типовим",
+  "template_default_clear": "Типовий ✓",
+
+  "template_name_prompt": "Назва шаблону",
+  "template_applied": "Шаблон застосовано",
+  "template_delete_confirm": "Видалити шаблон?",
+  "template_rename_prompt": "Перейменувати шаблон",
+  "template_update_confirm": "Оновити вибраний шаблон поточними налаштуваннями?"
 }

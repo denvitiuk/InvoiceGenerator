@@ -95,5 +95,21 @@
   "logo.reset": "Zurücksetzen",
   "logo.remove": "Logo entfernen",
   "object": "Objekt",
-  "object_placeholder": "z.B. Projekt / Baustelle"
+  "object_placeholder": "z.B. Projekt / Baustelle",
+  "templates": "Vorlagen",
+  "template_select": "Auswählen…",
+  "template_apply": "Anwenden",
+  "template_save_as": "Speichern als…",
+  "template_delete": "Löschen",
+  "template_rename": "Umbenennen",
+  "template_update": "Aktualisieren",
+  "template_default": "Als Standard setzen",
+  "template_default_set": "Als Standard",
+  "template_default_clear": "Standard ✓",
+
+  "template_name_prompt": "Vorlagenname",
+  "template_applied": "Vorlage angewendet",
+  "template_delete_confirm": "Vorlage löschen?",
+  "template_rename_prompt": "Vorlage umbenennen",
+  "template_update_confirm": "Ausgewählte Vorlage mit aktuellen Einstellungen aktualisieren?"
 }

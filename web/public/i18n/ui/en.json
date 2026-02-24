@@ -95,5 +95,21 @@
   "logo.reset": "Reset",
   "logo.remove": "Remove logo",
   "object": "Object",
-  "object_placeholder": "e.g. project / site"
+  "object_placeholder": "e.g. project / site",
+  "templates": "Templates",
+  "template_select": "Select…",
+  "template_apply": "Apply",
+  "template_save_as": "Save as…",
+  "template_delete": "Delete",
+  "template_rename": "Rename",
+  "template_update": "Update",
+  "template_default": "Set default",
+  "template_default_set": "Make default",
+  "template_default_clear": "Default ✓",
+
+  "template_name_prompt": "Template name",
+  "template_applied": "Template applied",
+  "template_delete_confirm": "Delete template?",
+  "template_rename_prompt": "Rename template",
+  "template_update_confirm": "Update selected template with current settings?"
 }
