@@ -93,5 +93,7 @@
   "logo.size": "Размер",
   "logo.selected": "Логотип выбран",
   "logo.reset": "Сброс",
-  "logo.remove": "Удалить логотип"
+  "logo.remove": "Удалить логотип",
+  "object": "Объект",
+  "object_placeholder": "например проект / объект"
 }

@@ -93,7 +93,7 @@
   "logo.size": "Größe",
   "logo.selected": "Logo ausgewählt",
   "logo.reset": "Zurücksetzen",
-  "logo.remove": "Logo entfernen"
-
-
+  "logo.remove": "Logo entfernen",
+  "object": "Objekt",
+  "object_placeholder": "z.B. Projekt / Baustelle"
 }

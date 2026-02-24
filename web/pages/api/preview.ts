@@ -55,6 +55,7 @@ export function normalizeInvoice(data: Partial<InvoiceData> | undefined): Invoic
     kleinunternehmer: !!(d as any).kleinunternehmer,
     notes: Array.isArray(d.notes) ? d.notes : [],
     theme: (d as any).theme as any,
+    object: typeof (d as any).object === "string" ? String((d as any).object).trim() : "",
 
     company: {
       name: d.company?.name || "—",

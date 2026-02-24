@@ -633,6 +633,15 @@ export default function AppShell() {
               </button>
             </div>
           </div>
+          <div style={{ gridColumn: "1 / span 2" }}>
+            <label style={{ display: "block", fontSize: 12, opacity: 0.7 }}>{t("object") || "Objekt"}</label>
+            <input
+              placeholder={t("object_placeholder") || "z.B. Projekt / Baustelle"}
+              value={(invoice as any).object || ""}
+              onChange={(e) => patchInvoice({ object: e.target.value } as any)}
+              style={{ width: "100%" }}
+            />
+          </div>
         </section>
 
         {/* Dates */}

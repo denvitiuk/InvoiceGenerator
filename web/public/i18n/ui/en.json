@@ -93,7 +93,7 @@
   "logo.size": "Size",
   "logo.selected": "Logo selected",
   "logo.reset": "Reset",
-  "logo.remove": "Remove logo"
-
-
+  "logo.remove": "Remove logo",
+  "object": "Object",
+  "object_placeholder": "e.g. project / site"
 }

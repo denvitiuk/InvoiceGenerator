@@ -14,6 +14,7 @@
   "issueDate": "Дата на издаване",
   "servicePeriod": "Период на услугата",
   "paymentTerms": "Условия за плащане",
+  "object": "Обект",
 
   "bank": "Банка",
   "iban": "IBAN",

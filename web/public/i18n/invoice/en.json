@@ -53,5 +53,6 @@
   "attachments": "Attachments",
   "page": "Page",
   "rc_note": "VAT reverse charge applies.",
-  "ku_note": "In accordance with §19 UStG, no VAT is charged."
+  "ku_note": "In accordance with §19 UStG, no VAT is charged.",
+  "object": "Object"
 }

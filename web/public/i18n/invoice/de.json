@@ -54,5 +54,6 @@
   "attachments": "Anhänge",
   "page": "Seite",
   "rc_note": "Steuerschuldnerschaft des Leistungsempfängers (Reverse-Charge).",
-  "ku_note": "Gemäß §19 UStG wird keine Umsatzsteuer berechnet."
+  "ku_note": "Gemäß §19 UStG wird keine Umsatzsteuer berechnet.",
+  "object": "Objekt"
 }

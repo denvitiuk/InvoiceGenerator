@@ -203,6 +203,9 @@ export function calcModel(data: InvoiceData, lang: Lang, baseUrl?: string) {
 
   const issueDate = toDisplayDate(data.issueDateISO, lang);
 
+  const rawObject = String((data as any).object ?? "").trim();
+  const object = rawObject === "-" || rawObject === "—" ? "" : rawObject;
+
   const dueRaw = (data as any).dueDays;
   const dueNum = typeof dueRaw === "number" ? dueRaw : parseInt(String(dueRaw), 10);
   const hasDue = Number.isFinite(dueNum) && dueNum > 0;
@@ -230,6 +233,7 @@ export function calcModel(data: InvoiceData, lang: Lang, baseUrl?: string) {
     language: lang,
     themeStyle: themeToCssVars((data as any).theme),
     number: data.number,
+    object,
     company: { ...data.company, logoPath: fileUrl(data.company.logoPath, baseUrl), logoUrl: fileUrl((data.company as any).logoUrl, baseUrl) },
     client: data.client,
     issueDate,

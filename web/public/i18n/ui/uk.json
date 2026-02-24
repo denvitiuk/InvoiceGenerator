@@ -97,6 +97,7 @@
   "logo.size": "Розмір",
   "logo.selected": "Логотип вибрано",
   "logo.reset": "Скинути",
-  "logo.remove": "Видалити логотип"
-
+  "logo.remove": "Видалити логотип",
+  "object": "Об’єкт",
+  "object_placeholder": "наприклад проєкт / об’єкт"
 }

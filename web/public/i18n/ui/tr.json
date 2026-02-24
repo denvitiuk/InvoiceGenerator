@@ -93,7 +93,7 @@
   "logo.size": "Boyut",
   "logo.selected": "Logo seçildi",
   "logo.reset": "Sıfırla",
-  "logo.remove": "Logoyu kaldır"
-
-
+  "logo.remove": "Logoyu kaldır",
+  "object": "Proje / Şantiye",
+  "object_placeholder": "örn. proje / şantiye"
 }

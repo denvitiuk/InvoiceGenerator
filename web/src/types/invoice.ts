@@ -89,6 +89,7 @@ export interface InvoiceData {
 
     company: CompanyInfo;
     client: ClientInfo;
+    object?: string; // optional object / project / site reference
     items: LineItem[];
 
     extraTables?: ExtraTable[];

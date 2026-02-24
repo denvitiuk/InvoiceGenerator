@@ -28,6 +28,8 @@
   "service_from": "Период от",
   "service_to": "Период до",
   "due_days": "Срок (дни)",
+  "object": "Обект",
+  "object_placeholder": "напр. проект / обект",
   "vat_rate": "Ставка ДДС",
   "unit": "Мярка",
   "qty": "Количество",

@@ -59,5 +59,6 @@
   "attachments": "Ekler",
   "page": "Sayfa",
   "rc_note": "KDV tersine yüklenir (Reverse-Charge).",
-  "ku_note": "§19 UStG uyarınca KDV hesaplanmaz."
+  "ku_note": "§19 UStG uyarınca KDV hesaplanmaz.",
+  "object": "Proje / Şantiye"
 }
