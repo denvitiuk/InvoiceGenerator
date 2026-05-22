@@ -8,14 +8,23 @@
   },
   "scripts": {
     "dev": "next dev",
+    "dev:local": "APP_MODE=local PDF_MODE=local STORAGE_DRIVER=local PDF_DEBUG=1 next dev",
     "build": "next build",
-    "start": "next start"
+    "build:local": "APP_MODE=local PDF_MODE=local STORAGE_DRIVER=local next build",
+    "start": "next start",
+    "start:local": "APP_MODE=local PDF_MODE=local STORAGE_DRIVER=local next start -H 0.0.0.0 -p 4577",
+    "local-app": "node local-server.mjs",
+    "electron:dev": "npm run build:local && electron electron/main.mjs",
+    "electron:pack": "npm run build:local && electron-builder --dir",
+    "electron:dist:mac": "npm run build:local && electron-builder --mac",
+    "electron:dist:win": "npm run build:local && electron-builder --win"
   },
   "dependencies": {
     "@sparticuz/chromium": "^141.0.0",
     "archiver": "^7.0.1",
     "date-fns": "^4.1.0",
     "handlebars": "^4.7.8",
+    "html-to-docx": "^1.8.0",
     "multer": "^2.0.2",
     "next": "14.2.35",
     "playwright": "^1.55.1",
@@ -26,10 +35,49 @@
   },
   "devDependencies": {
     "@types/archiver": "^7.0.0",
+    "@types/html-to-docx": "^1.8.0",
     "@types/multer": "^2.0.0",
     "@types/node": "^20.11.30",
     "@types/react": "^18.2.76",
     "@types/react-dom": "^18.2.24",
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8",
     "typescript": "^5.9.2"
+  },
+  "build": {
+    "appId": "de.invoicegenerator.desktop",
+    "productName": "Invoice Generator",
+    "asar": false,
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
+    "files": [
+      ".next/**/*",
+      "pages/**/*",
+      "public/**/*",
+      "server/**/*",
+      "src/**/*",
+      "templates/**/*",
+      "assets/**/*",
+      "electron/**/*",
+      "local-server.mjs",
+      "next.config.*",
+      "package.json",
+      "node_modules/**/*",
+      "!**/._*",
+      "!**/.DS_Store"
+    ],
+    "extraMetadata": {
+      "main": "electron/main.mjs"
+    },
+    "mac": {
+      "target": ["dmg", "zip"],
+      "category": "public.app-category.business",
+      "identity": null
+    },
+    "win": {
+      "target": ["nsis", "zip"]
+    },
+    "directories": {
+      "output": "dist"
+    }
   }
 }

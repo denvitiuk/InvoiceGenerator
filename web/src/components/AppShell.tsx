@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import { useStore, calcTotals } from "../lib/store";
 import { useI18n, useT } from "../lib/i18n";
-import { previewInvoice, renderInvoiceBlob, renderAllBlob, openInNewTab, uploadFile } from "../lib/api";
+import { previewInvoice, renderInvoiceBlob, renderInvoiceDocxBlob, renderAllBlob, openInNewTab, uploadFile } from "../lib/api";
 
 import PreviewPane from "./PreviewPane";
 import {Lang} from "../../server/lib/i18n";
@@ -621,6 +621,19 @@ export default function AppShell() {
       alert(`${t("success_render")}: ${filename}`);
     } catch (e: any) {
       dbg("onRenderPDF:error", e);
+      alert(e?.message || "Render failed");
+    }
+  }
+
+  async function onRenderDOCX() {
+    try {
+      dbg("onRenderDOCX:start", { invoiceLang, fileName: (invoice as any).fileName });
+      const { blob, filename } = await renderInvoiceDocxBlob(invoice, invoiceLang);
+      dbg("onRenderDOCX:gotBlob", { filename, size: blob.size, type: blob.type });
+      downloadBlob(filename, blob);
+      alert(`${t("success_render")}: ${filename}`);
+    } catch (e: any) {
+      dbg("onRenderDOCX:error", e);
       alert(e?.message || "Render failed");
     }
   }
@@ -1369,6 +1382,7 @@ export default function AppShell() {
 
           <button onClick={onOpenPreview}>{t("preview")}</button>
           <button onClick={onRenderPDF}>{t("generate_pdf")}</button>
+          <button onClick={onRenderDOCX}>{t("generate_docx") || "Generate Word"}</button>
           <button onClick={onRenderAll}>{t("generate_all")}</button>
           <button onClick={onDownloadLastData}>{t("download_last_data") || "Letzte Daten herunterladen"}</button>
         </section>

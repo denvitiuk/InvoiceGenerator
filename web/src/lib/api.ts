@@ -1,13 +1,12 @@
 // Frontend API helpers — talk to the backend via Next.js API routes.
 // We intentionally use same-origin `/api/*` endpoints (no separate Express server).
 
-
-import {InvoiceData, RenderAllResponse, RenderResponse, UploadResponse} from "@/types/invoice";
+import { InvoiceData, RenderAllResponse, RenderResponse, UploadResponse } from "@/types/invoice";
 
 export type Lang = "en" | "de" | "ru" | "bg" | "tr" | "uk";
 
 // Optional override (useful for self-hosting behind a different domain).
-// In Next,в only NEXT_PUBLIC_* is exposed to the browser.
+// In Next, only NEXT_PUBLIC_* is exposed to the browser.
 const API_BASE: string = (process.env.NEXT_PUBLIC_API_BASE || "").trim();
 
 function normalizeApiPath(p: string): string {
@@ -118,6 +117,22 @@ export async function renderInvoiceBlob(
   return {
     blob,
     filename: filename || (fileName ? (fileName.endsWith(".pdf") ? fileName : fileName + ".pdf") : fallback),
+  };
+}
+
+export async function renderInvoiceDocxBlob(
+  data: InvoiceData,
+  language?: Lang
+): Promise<{ blob: Blob; filename: string }> {
+  const fileName = (data as any)?.fileName || undefined;
+  const { blob, filename } = await postBlob(`/renderDocx?download=1`, { data, language, fileName });
+  const base = fileName || `rechnung-${data.number}`;
+  const fallback = base.endsWith(".docx")
+    ? base
+    : `${base}${language ? `-${language}` : ""}.docx`;
+  return {
+    blob,
+    filename: filename || fallback,
   };
 }
 
