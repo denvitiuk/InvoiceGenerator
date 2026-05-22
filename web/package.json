@@ -2,6 +2,8 @@
   "name": "invoicegener-web",
   "private": true,
   "version": "1.0.0",
+  "description": "Offline-capable invoice generator with HTML preview, PDF export, file uploads, and multilingual invoice templates.",
+  "author": "Invoice Generator",
   "type": "module",
   "engines": {
     "node": "22.x"
@@ -17,7 +19,8 @@
     "electron:dev": "npm run build:local && electron electron/main.mjs",
     "electron:pack": "npm run build:local && electron-builder --dir",
     "electron:dist:mac": "npm run build:local && electron-builder --mac",
-    "electron:dist:win": "npm run build:local && electron-builder --win"
+    "electron:dist:win": "npm run build:local && electron-builder --win",
+    "electron:dist:win:x64": "npm run build:local && electron-builder --win --x64"
   },
   "dependencies": {
     "@sparticuz/chromium": "^141.0.0",
@@ -69,12 +72,14 @@
       "main": "electron/main.mjs"
     },
     "mac": {
-      "target": ["dmg", "zip"],
+      "target": ["zip"],
       "category": "public.app-category.business",
-      "identity": null
+      "identity": null,
+      "icon": "build/icon.icns"
     },
     "win": {
-      "target": ["nsis", "zip"]
+      "target": ["zip"],
+      "signAndEditExecutable": false
     },
     "directories": {
       "output": "dist"
