@@ -1,5 +1,36 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  experimental: {
+    outputFileTracingExcludes: {
+      "/api/render": [
+        "./node_modules/electron/**/*",
+        "./node_modules/electron-builder/**/*",
+        "./node_modules/app-builder-lib/**/*",
+        "./node_modules/builder-util/**/*",
+        "./node_modules/builder-util-runtime/**/*",
+        "./node_modules/dmg-builder/**/*",
+        "./node_modules/winreg/**/*",
+        "./electron/**/*",
+        "./dist/**/*",
+        "./build/**/*",
+        "./scripts/**/*"
+      ],
+      "/api/renderAll": [
+        "./node_modules/electron/**/*",
+        "./node_modules/electron-builder/**/*",
+        "./node_modules/app-builder-lib/**/*",
+        "./node_modules/builder-util/**/*",
+        "./node_modules/builder-util-runtime/**/*",
+        "./node_modules/dmg-builder/**/*",
+        "./node_modules/winreg/**/*",
+        "./electron/**/*",
+        "./dist/**/*",
+        "./build/**/*",
+        "./scripts/**/*"
+      ]
+    }
+  },
+
   async rewrites() {
     return [
       // Legacy compatibility: keep old endpoints working by rewriting to Next API routes
