@@ -5,7 +5,14 @@ import { previewInvoice, renderInvoiceBlob, renderInvoiceDocxBlob, renderAllBlob
 
 import PreviewPane from "./PreviewPane";
 import {Lang} from "../../server/lib/i18n";
-import {InvoiceData, NumberingMode} from "@/types/invoice";
+import {
+  InvoiceData,
+  LineItem,
+  MonthlyCalculation,
+  MonthlyDailyEntry,
+  MonthlyCalculationMode,
+  NumberingMode,
+} from "@/types/invoice";
 
 
 
@@ -22,7 +29,8 @@ type InvoiceTemplate = {
   name: string;
   updatedAt: string;
   invoiceLang: Lang;
-  // We store only "design" scope for now (safe apply): company + meta + theme + numbering/file name preferences.
+  // Older templates do not have this flag and continue to apply only the header/design data.
+  includeItems?: boolean;
   data: Partial<InvoiceData>;
 };
 
@@ -71,9 +79,8 @@ function writeTemplates(next: InvoiceTemplate[]) {
   localStorage.setItem(TEMPLATES_LS_KEY, JSON.stringify(next));
 }
 
-function pickDesignTemplate(inv: InvoiceData): Partial<InvoiceData> {
-  // Intentionally excludes items, number, dates — safe to apply without losing work.
-  return {
+function pickTemplateData(inv: InvoiceData, includeItems: boolean): Partial<InvoiceData> {
+  const data: Partial<InvoiceData> = {
     company: inv.company,
     client: inv.client,
     currency: inv.currency,
@@ -84,7 +91,651 @@ function pickDesignTemplate(inv: InvoiceData): Partial<InvoiceData> {
     showNumberInTitle: (inv as any).showNumberInTitle,
     numberingMode: (inv as any).numberingMode,
     fileName: (inv as any).fileName,
-  } as any;
+  };
+
+  if (includeItems) {
+    data.items = inv.items.map((item) => ({ ...item }));
+  }
+
+  return data;
+}
+
+function templateDataToApply(tpl: InvoiceTemplate): Partial<InvoiceData> {
+  const data = { ...tpl.data };
+
+  // The explicit flag preserves the meaning of an empty saved list: applying such
+  // a template should clear the current positions. Array.isArray keeps compatibility
+  // with any templates that already contain items but predate the flag.
+  if (tpl.includeItems || Array.isArray(tpl.data.items)) {
+    data.items = (tpl.data.items || []).map((item) => ({ ...item }));
+  } else {
+    delete data.items;
+  }
+
+  return data;
+}
+
+function escapeDescriptionText(value: unknown): string {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function legacyDescriptionToRichHtml(value: unknown): string {
+  return escapeDescriptionText(value)
+    .replace(/\*\*([\s\S]+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\r\n?|\n/g, "<br />");
+}
+
+function sanitizeStoredDescriptionHtml(value: unknown): string {
+  return escapeDescriptionText(value)
+    .replace(/&lt;(?:strong|b)&gt;/gi, "<strong>")
+    .replace(/&lt;\/(?:strong|b)&gt;/gi, "</strong>")
+    .replace(/&lt;br\s*\/?&gt;/gi, "<br />");
+}
+
+function serializeDescriptionEditor(editor: HTMLDivElement): string {
+  function serialize(node: ChildNode): string {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return escapeDescriptionText(node.textContent || "");
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return "";
+
+    const element = node as HTMLElement;
+    const tag = element.tagName.toLowerCase();
+    const children = Array.from(element.childNodes).map(serialize).join("");
+
+    if (tag === "strong" || tag === "b") return `<strong>${children}</strong>`;
+    if (tag === "br") return "<br />";
+    if (tag === "div" || tag === "p") return `${children}<br />`;
+    return children;
+  }
+
+  return Array.from(editor.childNodes)
+    .map(serialize)
+    .join("")
+    .replace(/(?:<br \/>)+$/g, "");
+}
+
+type RichDescriptionEditorProps = {
+  id: string;
+  item: LineItem;
+  placeholder: string;
+  boldLabel: string;
+  boldHint: string;
+  calendarLabel: string;
+  calendarHint: string;
+  onOpenMonthCalculator: () => void;
+  onChange: (patch: Pick<LineItem, "description" | "descriptionHtml">) => void;
+};
+
+function RichDescriptionEditor({
+  id,
+  item,
+  placeholder,
+  boldLabel,
+  boldHint,
+  calendarLabel,
+  calendarHint,
+  onOpenMonthCalculator,
+  onChange,
+}: RichDescriptionEditorProps) {
+  const editorRef = React.useRef<HTMLDivElement | null>(null);
+  const storedHtml = React.useMemo(
+    () =>
+      typeof item.descriptionHtml === "string"
+        ? sanitizeStoredDescriptionHtml(item.descriptionHtml)
+        : legacyDescriptionToRichHtml(item.description),
+    [item.description, item.descriptionHtml]
+  );
+
+  React.useLayoutEffect(() => {
+    const editor = editorRef.current;
+    if (!editor || document.activeElement === editor) return;
+    if (editor.innerHTML !== storedHtml) editor.innerHTML = storedHtml;
+  }, [storedHtml]);
+
+  function commit(normalizeDom = false) {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    const descriptionHtml = serializeDescriptionEditor(editor);
+    const description = (editor.innerText || "")
+      .replaceAll("\u00a0", " ")
+      .replace(/\n+$/g, "");
+
+    if (normalizeDom && editor.innerHTML !== descriptionHtml) {
+      editor.innerHTML = descriptionHtml;
+    }
+
+    onChange({ description, descriptionHtml });
+  }
+
+  function toggleBold() {
+    const editor = editorRef.current;
+    if (!editor) return;
+    editor.focus();
+    document.execCommand("styleWithCSS", false, "false");
+    document.execCommand("bold", false);
+    commit();
+  }
+
+  return (
+    <div className="invoice-item-description-control">
+      <div
+        id={id}
+        ref={editorRef}
+        className="rich-description-editor"
+        contentEditable
+        suppressContentEditableWarning
+        role="textbox"
+        aria-multiline="true"
+        aria-label={placeholder}
+        data-placeholder={placeholder}
+        onInput={() => commit()}
+        onBlur={() => commit(true)}
+        onKeyDown={(event) => {
+          if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b") {
+            event.preventDefault();
+            toggleBold();
+          }
+        }}
+        onPaste={(event) => {
+          event.preventDefault();
+          document.execCommand("insertText", false, event.clipboardData.getData("text/plain"));
+          commit();
+        }}
+      />
+      <button
+        type="button"
+        className="invoice-item-bold"
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={toggleBold}
+        title={boldHint}
+        aria-label={boldLabel}
+      >
+        B
+      </button>
+      <button
+        type="button"
+        className={`invoice-item-calendar${item.monthlyCalculation ? " is-active" : ""}`}
+        onClick={onOpenMonthCalculator}
+        title={calendarHint}
+        aria-label={calendarLabel}
+      >
+        📅
+      </button>
+    </div>
+  );
+}
+
+const LOCALE_BY_LANG: Record<Lang, string> = {
+  en: "en-US",
+  de: "de-DE",
+  ru: "ru-RU",
+  bg: "bg-BG",
+  tr: "tr-TR",
+  uk: "uk-UA",
+};
+
+function currentMonthValue(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function datesInMonth(month: string): string[] {
+  const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(month);
+  if (!match) return [];
+
+  const year = Number(match[1]);
+  const monthNumber = Number(match[2]);
+  const count = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
+  return Array.from(
+    { length: count },
+    (_, index) => `${month}-${String(index + 1).padStart(2, "0")}`
+  );
+}
+
+function isWeekday(date: string): boolean {
+  const day = new Date(`${date}T00:00:00Z`).getUTCDay();
+  return day >= 1 && day <= 5;
+}
+
+function weekdaysInMonth(month: string): string[] {
+  return datesInMonth(month).filter(isWeekday);
+}
+
+type Translate = (key: string, vars?: Record<string, string | number>) => string;
+
+type MonthlyCalculationDialogProps = {
+  value?: MonthlyCalculation;
+  defaultMonth: string;
+  lang: Lang;
+  currency: string;
+  unitPrice: number;
+  t: Translate;
+  onApply: (calculation: MonthlyCalculation) => void;
+  onClear: () => void;
+  onClose: () => void;
+};
+
+function MonthlyCalculationDialog({
+  value,
+  defaultMonth,
+  lang,
+  currency,
+  unitPrice,
+  t,
+  onApply,
+  onClear,
+  onClose,
+}: MonthlyCalculationDialogProps) {
+  const initialMonth = value?.month || defaultMonth || currentMonthValue();
+  const [month, setMonth] = React.useState(initialMonth);
+  const [mode, setMode] = React.useState<MonthlyCalculationMode>(value?.mode || "weekdays");
+  const [manualDates, setManualDates] = React.useState<string[]>(
+    value?.mode === "selected" ? [...value.selectedDates].sort() : []
+  );
+  const firstDailyEntry = value?.dailyEntries?.[0];
+  const [detailed, setDetailed] = React.useState(Boolean(value?.detailed));
+  const [defaultPeople, setDefaultPeople] = React.useState(firstDailyEntry?.people ?? 1);
+  const [defaultHours, setDefaultHours] = React.useState(firstDailyEntry?.hours ?? 8);
+  const [dailyOverrides, setDailyOverrides] = React.useState<Record<string, MonthlyDailyEntry>>(
+    () =>
+      Object.fromEntries(
+        (value?.dailyEntries || []).map((entry) => [entry.date, { ...entry }])
+      )
+  );
+
+  React.useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
+  const allDates = React.useMemo(() => datesInMonth(month), [month]);
+  const selectedDates = React.useMemo(
+    () =>
+      mode === "weekdays"
+        ? weekdaysInMonth(month)
+        : manualDates.filter((date) => date.startsWith(`${month}-`)).sort(),
+    [manualDates, mode, month]
+  );
+  const selectedSet = React.useMemo(() => new Set(selectedDates), [selectedDates]);
+  const dailyEntries = React.useMemo(
+    () =>
+      selectedDates.map((date) => {
+        const override = dailyOverrides[date];
+        return {
+          date,
+          people: override?.people ?? defaultPeople,
+          hours: override?.hours ?? defaultHours,
+        };
+      }),
+    [dailyOverrides, defaultHours, defaultPeople, selectedDates]
+  );
+  const totalHours = dailyEntries.reduce(
+    (sum, entry) => sum + entry.people * entry.hours,
+    0
+  );
+  const estimatedTotal = totalHours * (Number.isFinite(unitPrice) ? unitPrice : 0);
+  const leadingBlanks = allDates.length
+    ? (new Date(`${allDates[0]}T00:00:00Z`).getUTCDay() + 6) % 7
+    : 0;
+  const weekdayLabels = React.useMemo(
+    () =>
+      Array.from({ length: 7 }, (_, index) =>
+        new Intl.DateTimeFormat(LOCALE_BY_LANG[lang], {
+          weekday: "short",
+          timeZone: "UTC",
+        }).format(new Date(Date.UTC(2026, 0, 5 + index)))
+      ),
+    [lang]
+  );
+  const monthLabel = /^\d{4}-\d{2}$/.test(month)
+    ? new Intl.DateTimeFormat(LOCALE_BY_LANG[lang], {
+        month: "long",
+        year: "numeric",
+        timeZone: "UTC",
+      }).format(new Date(`${month}-01T00:00:00Z`))
+    : month;
+
+  function selectMode(nextMode: MonthlyCalculationMode) {
+    setMode(nextMode);
+    if (nextMode === "selected" && mode !== "selected" && !manualDates.length) {
+      setManualDates([]);
+    }
+  }
+
+  function toggleDate(date: string) {
+    if (mode !== "selected") return;
+    setManualDates((current) =>
+      current.includes(date)
+        ? current.filter((item) => item !== date)
+        : [...current, date].sort()
+    );
+  }
+
+  function updateDailyEntry(date: string, patch: Partial<MonthlyDailyEntry>) {
+    setDailyOverrides((current) => {
+      const existing = current[date] || {
+        date,
+        people: defaultPeople,
+        hours: defaultHours,
+      };
+      return {
+        ...current,
+        [date]: {
+          ...existing,
+          ...patch,
+          date,
+        },
+      };
+    });
+  }
+
+  function updatePeopleForAll(people: number) {
+    setDefaultPeople(people);
+    setDailyOverrides((current) =>
+      Object.fromEntries(
+        selectedDates.map((date) => [
+          date,
+          {
+            date,
+            people,
+            hours: current[date]?.hours ?? defaultHours,
+          },
+        ])
+      )
+    );
+  }
+
+  function updateHoursForAll(hours: number) {
+    setDefaultHours(hours);
+    setDailyOverrides((current) =>
+      Object.fromEntries(
+        selectedDates.map((date) => [
+          date,
+          {
+            date,
+            people: current[date]?.people ?? defaultPeople,
+            hours,
+          },
+        ])
+      )
+    );
+  }
+
+  function formatDay(date: string): string {
+    return new Intl.DateTimeFormat(LOCALE_BY_LANG[lang], {
+      weekday: "short",
+      day: "2-digit",
+      month: "2-digit",
+      timeZone: "UTC",
+    }).format(new Date(`${date}T00:00:00Z`));
+  }
+
+  function formatMoney(value: number): string {
+    try {
+      return new Intl.NumberFormat(LOCALE_BY_LANG[lang], {
+        style: "currency",
+        currency,
+      }).format(value);
+    } catch {
+      return `${value.toFixed(2)} ${currency}`;
+    }
+  }
+
+  return (
+    <div
+      className="month-calc-backdrop"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div
+        className={`month-calc-dialog${detailed ? " is-detailed" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("month_calc_title") || "Monthly calculation"}
+      >
+        <div className="month-calc-header">
+          <div>
+            <h2>{t("month_calc_title") || "Monthly calculation"}</h2>
+            <p>{t("month_calc_hint") || "Choose all weekdays or individual dates."}</p>
+          </div>
+          <button type="button" className="month-calc-close" onClick={onClose} aria-label={t("month_calc_cancel") || "Cancel"}>
+            ×
+          </button>
+        </div>
+
+        <label className="month-calc-month">
+          <span>{t("month_calc_month") || "Month"}</span>
+          <input
+            type="month"
+            value={month}
+            onChange={(event) => {
+              const nextMonth = event.target.value;
+              if (!nextMonth) return;
+              setMonth(nextMonth);
+              setManualDates((dates) => dates.filter((date) => date.startsWith(`${nextMonth}-`)));
+            }}
+          />
+        </label>
+
+        <div className="month-calc-modes">
+          <button
+            type="button"
+            className={mode === "weekdays" ? "is-active" : ""}
+            onClick={() => selectMode("weekdays")}
+          >
+            <strong>{t("month_calc_weekdays") || "All weekdays"}</strong>
+            <span>{t("month_calc_weekdays_note") || "Monday–Friday"}</span>
+          </button>
+          <button
+            type="button"
+            className={mode === "selected" ? "is-active" : ""}
+            onClick={() => selectMode("selected")}
+          >
+            <strong>{t("month_calc_selected") || "Selected days"}</strong>
+            <span>{t("month_calc_selected_note") || "Choose dates in the calendar"}</span>
+          </button>
+        </div>
+
+        <div className="month-calc-calendar" aria-label={monthLabel}>
+          {weekdayLabels.map((label, index) => (
+            <div key={`${label}-${index}`} className="month-calc-weekday">{label}</div>
+          ))}
+          {Array.from({ length: leadingBlanks }, (_, index) => (
+            <span key={`blank-${index}`} className="month-calc-blank" />
+          ))}
+          {allDates.map((date) => {
+            const selected = selectedSet.has(date);
+            const weekend = !isWeekday(date);
+            return (
+              <button
+                key={date}
+                type="button"
+                className={[
+                  "month-calc-day",
+                  selected ? "is-selected" : "",
+                  weekend ? "is-weekend" : "",
+                ].filter(Boolean).join(" ")}
+                onClick={() => toggleDate(date)}
+                aria-pressed={selected}
+                disabled={mode === "weekdays"}
+              >
+                {Number(date.slice(8, 10))}
+              </button>
+            );
+          })}
+        </div>
+
+        <label className="month-calc-detail-toggle">
+          <input
+            type="checkbox"
+            checked={detailed}
+            onChange={(event) => setDetailed(event.target.checked)}
+          />
+          <span>
+            <strong>{t("month_calc_detailed") || "Detailed daily breakdown"}</strong>
+            <small>
+              {t("month_calc_detailed_hint") ||
+                "Show a separate invoice row for every selected date"}
+            </small>
+          </span>
+        </label>
+
+        {detailed && (
+          <div className="month-calc-details">
+            <div className="month-calc-defaults">
+              <label>
+                <span>{t("month_calc_default_people") || "People for all days"}</span>
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={defaultPeople}
+                  onChange={(event) => {
+                    const value = Number(event.target.value);
+                    updatePeopleForAll(
+                      Number.isFinite(value) ? Math.max(1, Math.floor(value)) : 1
+                    );
+                  }}
+                />
+              </label>
+              <label>
+                <span>{t("month_calc_default_hours") || "Hours per person"}</span>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.25}
+                  value={defaultHours}
+                  onChange={(event) => {
+                    const value = Number(event.target.value);
+                    updateHoursForAll(Number.isFinite(value) ? Math.max(0, value) : 0);
+                  }}
+                />
+              </label>
+            </div>
+
+            <div className="month-calc-daily-header">
+              <strong>{t("month_calc_daily_breakdown") || "Days and hours"}</strong>
+              <span>
+                {t("month_calc_hourly_rate", { rate: formatMoney(unitPrice) }) ||
+                  `Rate: ${formatMoney(unitPrice)}`}
+              </span>
+            </div>
+
+            <div className="month-calc-daily-list">
+              {dailyEntries.map((entry) => {
+                const rowHours = entry.people * entry.hours;
+                return (
+                  <div className="month-calc-daily-row" key={entry.date}>
+                    <div className="month-calc-daily-date">{formatDay(entry.date)}</div>
+                    <label>
+                      <span>{t("month_calc_people") || "People"}</span>
+                      <input
+                        type="number"
+                        min={1}
+                        step={1}
+                        value={entry.people}
+                        onChange={(event) => {
+                          const value = Number(event.target.value);
+                          updateDailyEntry(entry.date, {
+                            people: Number.isFinite(value)
+                              ? Math.max(1, Math.floor(value))
+                              : 1,
+                          });
+                        }}
+                      />
+                    </label>
+                    <label>
+                      <span>{t("month_calc_hours") || "Hours"}</span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.25}
+                        value={entry.hours}
+                        onChange={(event) => {
+                          const value = Number(event.target.value);
+                          updateDailyEntry(entry.date, {
+                            hours: Number.isFinite(value) ? Math.max(0, value) : 0,
+                          });
+                        }}
+                      />
+                    </label>
+                    <strong className="month-calc-daily-total">
+                      {new Intl.NumberFormat(LOCALE_BY_LANG[lang], {
+                        maximumFractionDigits: 2,
+                      }).format(rowHours)}{" "}
+                      h
+                    </strong>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <div className="month-calc-summary">
+          <div>
+            <strong>
+              {detailed
+                ? t("month_calc_total_hours", {
+                    hours: new Intl.NumberFormat(LOCALE_BY_LANG[lang], {
+                      maximumFractionDigits: 2,
+                    }).format(totalHours),
+                  }) || `Total person-hours: ${totalHours}`
+                : t("month_calc_selected_count", { count: selectedDates.length }) ||
+                  `${selectedDates.length} days selected`}
+            </strong>
+            <span>{monthLabel}</span>
+          </div>
+          {detailed && (
+            <strong className="month-calc-estimated-total">
+              {formatMoney(estimatedTotal)}
+            </strong>
+          )}
+        </div>
+
+        <div className="month-calc-actions">
+          {value && (
+            <button type="button" className="month-calc-remove" onClick={onClear}>
+              {t("month_calc_remove") || "Remove calculation"}
+            </button>
+          )}
+          <button type="button" onClick={onClose}>
+            {t("month_calc_cancel") || "Cancel"}
+          </button>
+          <button
+            type="button"
+            data-variant="primary"
+            disabled={!selectedDates.length}
+            onClick={() =>
+              onApply({
+                month,
+                mode,
+                selectedDates,
+                detailed,
+                dailyEntries: detailed
+                  ? dailyEntries.map((entry) => ({ ...entry }))
+                  : undefined,
+              })
+            }
+          >
+            {t("month_calc_apply") || "Apply calculation"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function AppShell() {
@@ -108,6 +759,7 @@ export default function AppShell() {
   const addItem = useStore((s) => s.addItem);
   const updateItem = useStore((s) => s.updateItem);
   const removeItem = useStore((s) => s.removeItem);
+  const [monthlyCalculationItemIndex, setMonthlyCalculationItemIndex] = React.useState<number | null>(null);
 
   // Theme / palette actions (Receipt Pro)
   const applyThemePreset = useStore((s: any) => s.applyThemePreset);
@@ -134,6 +786,7 @@ export default function AppShell() {
     return readTemplates();
   });
   const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>("");
+  const [includeItemsInTemplate, setIncludeItemsInTemplate] = React.useState(true);
   const [defaultTemplateId, setDefaultTemplateId] = React.useState<string>(() => {
     if (typeof window === "undefined") return "";
     return readDefaultTemplateId();
@@ -163,7 +816,8 @@ export default function AppShell() {
       name,
       updatedAt: new Date().toISOString(),
       invoiceLang,
-      data: pickDesignTemplate(invoice),
+      includeItems: includeItemsInTemplate,
+      data: pickTemplateData(invoice, includeItemsInTemplate),
     };
     const next = [tpl, ...templates].sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
     writeTemplates(next);
@@ -177,8 +831,7 @@ export default function AppShell() {
     const tpl = templates.find((x) => x.id === id);
     if (!tpl) return;
 
-    // Apply only the stored design scope; keep items/number/dates intact.
-    patchInvoice(tpl.data as any);
+    patchInvoice(templateDataToApply(tpl));
     setInvoiceLang(tpl.invoiceLang);
 
     // Ensure dueDays draft reflects applied template.
@@ -227,7 +880,8 @@ export default function AppShell() {
       ...tpl,
       updatedAt: new Date().toISOString(),
       invoiceLang,
-      data: pickDesignTemplate(invoice),
+      includeItems: includeItemsInTemplate,
+      data: pickTemplateData(invoice, includeItemsInTemplate),
     };
 
     const next = [updated, ...templates.filter((x) => x.id !== id)].sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
@@ -294,7 +948,7 @@ export default function AppShell() {
       return;
     }
 
-    patchInvoice(tpl.data as any);
+    patchInvoice(templateDataToApply(tpl));
     setInvoiceLang(tpl.invoiceLang);
 
     // Ensure dueDays draft reflects applied template.
@@ -671,9 +1325,15 @@ export default function AppShell() {
     downloadBlob(name, blob);
   }
 
+  const monthlyCalculationItem =
+    monthlyCalculationItemIndex === null
+      ? undefined
+      : invoice.items[monthlyCalculationItemIndex];
+
   // Layout ---------------------------------------------------------------
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "minmax(320px, 560px) 1fr", height: "100vh" }}>
+    <>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(320px, 560px) 1fr", height: "100vh" }}>
       {/* Left column: form */}
       <div style={{ padding: 16, overflow: "auto", borderRight: "1px solid #eee" }}>
         <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
@@ -1116,53 +1776,100 @@ export default function AppShell() {
         {/* Items */}
         <section style={{ marginTop: 16 }}>
           <h3 style={{ marginTop: 0 }}>{t("section_items")}</h3>
+          <datalist id="invoice-item-groups">
+            {Array.from(new Set(invoice.items.map((item) => (item.group || "").trim()).filter(Boolean))).map((group) => (
+              <option key={group} value={group} />
+            ))}
+          </datalist>
           {invoice.items.map((it, i) => (
-            <div
-              key={i}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "2.2fr 110px 110px 140px 110px auto",
-                gap: 8,
-                alignItems: "center",
-                marginBottom: 6,
-              }}
-            >
-              <input value={it.description} onChange={(e) => updateItem(i, { description: e.target.value })} placeholder={t("description")} />
-              <input
-                type="text"
-                inputMode="numeric"
-                value={String(it.qty ?? "")}
-                onChange={(e) => {
-                  const v = (e.target.value || "").replace(",", ".");
-                  const n = v.trim() === "" ? 0 : parseFloat(v);
-                  updateItem(i, { qty: Number.isFinite(n) ? n : 0 });
-                }}
-                placeholder={t("qty")}
-              />
-              <input value={it.unit || ""} onChange={(e) => updateItem(i, { unit: e.target.value })} placeholder={t("unit")} />
-              <input
-                type="text"
-                inputMode="decimal"
-                value={String(it.unitPrice ?? "")}
-                onChange={(e) => {
-                  const v = (e.target.value || "").replace(",", ".");
-                  const n = v.trim() === "" ? 0 : parseFloat(v);
-                  updateItem(i, { unitPrice: Number.isFinite(n) ? n : 0 });
-                }}
-                placeholder={t("unit_price")}
-              />
-              <input
-                type="text"
-                inputMode="numeric"
-                value={String(it.vatRate ?? "")}
-                onChange={(e) => {
-                  const v = (e.target.value || "").replace(",", ".");
-                  const n = v.trim() === "" ? 0 : parseFloat(v);
-                  updateItem(i, { vatRate: Number.isFinite(n) ? n : 0 });
-                }}
-                placeholder={t("vat_rate")}
-              />
-              <button onClick={() => removeItem(i)}>{t("remove")}</button>
+            <div key={i} className="invoice-item-card">
+              <div className="invoice-item-card__top">
+                <div className="invoice-item-field">
+                  <label htmlFor={`item-group-${i}`}>{t("item_group_placeholder") || "Object / group"}</label>
+                  <input
+                    id={`item-group-${i}`}
+                    list="invoice-item-groups"
+                    value={it.group || ""}
+                    onChange={(e) => updateItem(i, { group: e.target.value })}
+                    placeholder={t("item_group_placeholder") || "Object / group"}
+                    title={t("item_group_hint") || "Items with the same group are shown together under one heading."}
+                  />
+                </div>
+                <div className="invoice-item-field invoice-item-field--description">
+                  <label htmlFor={`item-description-${i}`}>{t("description")}</label>
+                  <RichDescriptionEditor
+                    id={`item-description-${i}`}
+                    item={it}
+                    placeholder={t("description")}
+                    boldLabel={t("description_bold") || "Bold"}
+                    boldHint={t("description_bold_hint") || "Select text and press Cmd+B or Ctrl+B"}
+                    calendarLabel={t("month_calc_button") || "Monthly calculation"}
+                    calendarHint={t("month_calc_button_hint") || "Choose working days or selected dates"}
+                    onOpenMonthCalculator={() => setMonthlyCalculationItemIndex(i)}
+                    onChange={(patch) => updateItem(i, patch)}
+                  />
+                </div>
+                <button type="button" className="invoice-item-remove" onClick={() => removeItem(i)}>
+                  {t("remove")}
+                </button>
+              </div>
+
+              <div className="invoice-item-card__values">
+                <div className="invoice-item-field">
+                  <label htmlFor={`item-qty-${i}`}>{t("qty")}</label>
+                  <input
+                    id={`item-qty-${i}`}
+                    type="text"
+                    inputMode="numeric"
+                    value={String(it.qty ?? "")}
+                    onChange={(e) => {
+                      const v = (e.target.value || "").replace(",", ".");
+                      const n = v.trim() === "" ? 0 : parseFloat(v);
+                      updateItem(i, { qty: Number.isFinite(n) ? n : 0 });
+                    }}
+                    placeholder={t("qty")}
+                  />
+                </div>
+                <div className="invoice-item-field">
+                  <label htmlFor={`item-unit-${i}`}>{t("unit")}</label>
+                  <input
+                    id={`item-unit-${i}`}
+                    value={it.unit || ""}
+                    onChange={(e) => updateItem(i, { unit: e.target.value })}
+                    placeholder={t("unit")}
+                  />
+                </div>
+                <div className="invoice-item-field">
+                  <label htmlFor={`item-price-${i}`}>{t("unit_price")}</label>
+                  <input
+                    id={`item-price-${i}`}
+                    type="text"
+                    inputMode="decimal"
+                    value={String(it.unitPrice ?? "")}
+                    onChange={(e) => {
+                      const v = (e.target.value || "").replace(",", ".");
+                      const n = v.trim() === "" ? 0 : parseFloat(v);
+                      updateItem(i, { unitPrice: Number.isFinite(n) ? n : 0 });
+                    }}
+                    placeholder={t("unit_price")}
+                  />
+                </div>
+                <div className="invoice-item-field">
+                  <label htmlFor={`item-vat-${i}`}>{t("vat_rate")}</label>
+                  <input
+                    id={`item-vat-${i}`}
+                    type="text"
+                    inputMode="numeric"
+                    value={String(it.vatRate ?? "")}
+                    onChange={(e) => {
+                      const v = (e.target.value || "").replace(",", ".");
+                      const n = v.trim() === "" ? 0 : parseFloat(v);
+                      updateItem(i, { vatRate: Number.isFinite(n) ? n : 0 });
+                    }}
+                    placeholder={t("vat_rate")}
+                  />
+                </div>
+              </div>
             </div>
           ))}
           <button onClick={() => addItem({ qty: 1, unitPrice: 0, vatRate: 19 })} style={{ marginTop: 6 }}>{t("add_item")}</button>
@@ -1200,7 +1907,12 @@ export default function AppShell() {
             <span style={{ fontSize: 12, opacity: 0.8, fontWeight: 600 }}>{t("templates") || "Templates"}</span>
             <select
               value={selectedTemplateId}
-              onChange={(e) => setSelectedTemplateId(e.target.value)}
+              onChange={(e) => {
+                const id = e.target.value;
+                setSelectedTemplateId(id);
+                const tpl = templates.find((item) => item.id === id);
+                setIncludeItemsInTemplate(tpl ? Boolean(tpl.includeItems || Array.isArray(tpl.data.items)) : true);
+              }}
               style={{ minWidth: 180 }}
               title={t("templates") || "Templates"}
             >
@@ -1211,6 +1923,17 @@ export default function AppShell() {
                 </option>
               ))}
             </select>
+            <label
+              title={t("template_include_items_hint") || "Store and restore descriptions, quantity, units, prices and VAT."}
+              style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", fontSize: 13 }}
+            >
+              <input
+                type="checkbox"
+                checked={includeItemsInTemplate}
+                onChange={(e) => setIncludeItemsInTemplate(e.target.checked)}
+              />
+              <span>{t("template_include_items") || "Save items and descriptions"}</span>
+            </label>
             <button type="button" onClick={onApplyTemplate} disabled={!selectedTemplateId}>
               {t("template_apply") || "Apply"}
             </button>
@@ -1389,7 +2112,50 @@ export default function AppShell() {
       </div>
 
       {/* Right column: live preview */}
-      <PreviewPane invoice={invoice} language={invoiceLang} debounceMs={250} />
-    </div>
+        <PreviewPane invoice={invoice} language={invoiceLang} debounceMs={250} />
+      </div>
+
+      {monthlyCalculationItemIndex !== null && monthlyCalculationItem && (
+        <MonthlyCalculationDialog
+          key={monthlyCalculationItemIndex}
+          value={monthlyCalculationItem.monthlyCalculation}
+          defaultMonth={
+            /^\d{4}-\d{2}/.test(invoice.issueDateISO || "")
+              ? invoice.issueDateISO.slice(0, 7)
+              : currentMonthValue()
+          }
+          lang={uiLang as Lang}
+          currency={invoice.currency}
+          unitPrice={monthlyCalculationItem.unitPrice || 0}
+          t={t}
+          onClose={() => setMonthlyCalculationItemIndex(null)}
+          onClear={() => {
+            updateItem(monthlyCalculationItemIndex, { monthlyCalculation: undefined });
+            setMonthlyCalculationItemIndex(null);
+          }}
+          onApply={(calculation) => {
+            const calculatedQuantity = calculation.detailed
+              ? (calculation.dailyEntries || []).reduce(
+                  (sum, entry) => sum + entry.people * entry.hours,
+                  0
+                )
+              : calculation.selectedDates.length;
+            updateItem(monthlyCalculationItemIndex, {
+              monthlyCalculation: {
+                ...calculation,
+                selectedDates: [...calculation.selectedDates],
+                dailyEntries: calculation.dailyEntries?.map((entry) => ({ ...entry })),
+              },
+              qty: calculatedQuantity,
+              unit:
+                calculation.detailed && !monthlyCalculationItem.unit?.trim()
+                  ? "h"
+                  : monthlyCalculationItem.unit,
+            });
+            setMonthlyCalculationItemIndex(null);
+          }}
+        />
+      )}
+    </>
   );
 }

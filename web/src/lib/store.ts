@@ -177,7 +177,16 @@ export const useStore = create<AppState>()(
 
       addItem: (item) => set({
         invoice: { ...get().invoice, items: [...get().invoice.items, {
+          group: item?.group ?? "",
           description: item?.description ?? "",
+          descriptionHtml: item?.descriptionHtml,
+          monthlyCalculation: item?.monthlyCalculation
+            ? {
+                ...item.monthlyCalculation,
+                selectedDates: [...item.monthlyCalculation.selectedDates],
+                dailyEntries: item.monthlyCalculation.dailyEntries?.map((entry) => ({ ...entry })),
+              }
+            : undefined,
           qty: item?.qty ?? 1,
           unit: item?.unit ?? "",
           unitPrice: item?.unitPrice ?? 0,

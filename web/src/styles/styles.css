@@ -260,6 +260,466 @@ button[data-variant="primary"]:hover {
   background: rgba(37, 99, 235, 0.12);
 }
 
+/* Invoice item editor */
+.invoice-item-card {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card-2);
+  container-type: inline-size;
+}
+
+.invoice-item-card__top {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.85fr) minmax(0, 1.7fr) max-content;
+  gap: 10px;
+  align-items: end;
+  min-width: 0;
+}
+
+.invoice-item-card__values {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(105px, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+.invoice-item-field {
+  min-width: 0;
+}
+
+.invoice-item-field label {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.invoice-item-description-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 40px 40px;
+  gap: 6px;
+}
+
+.rich-description-editor {
+  min-height: 39px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.35;
+  outline: none;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.rich-description-editor:focus {
+  border-color: rgba(37, 99, 235, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.18);
+}
+
+.rich-description-editor:empty::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  pointer-events: none;
+}
+
+.invoice-item-bold,
+.invoice-item-calendar {
+  width: 40px;
+  padding: 0;
+  font-weight: 800;
+  font-size: 15px;
+}
+
+.invoice-item-calendar {
+  font-size: 14px;
+}
+
+.invoice-item-calendar.is-active {
+  border-color: rgba(37, 99, 235, 0.45);
+  background: rgba(37, 99, 235, 0.1);
+}
+
+.invoice-item-remove {
+  white-space: nowrap;
+}
+
+.invoice-item-card input:focus {
+  border-color: rgba(37, 99, 235, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.18);
+}
+
+@container (max-width: 600px) {
+  .invoice-item-card__top {
+    grid-template-columns: minmax(0, 1fr) max-content;
+  }
+
+  .invoice-item-card__values {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .invoice-item-field--description {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .invoice-item-remove {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}
+
+@container (max-width: 340px) {
+  .invoice-item-card__values {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Monthly calculation dialog */
+.month-calc-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(17, 24, 39, 0.42);
+  backdrop-filter: blur(2px);
+}
+
+.month-calc-dialog {
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--card);
+  box-shadow: 0 24px 70px rgba(17, 24, 39, 0.24);
+}
+
+.month-calc-dialog.is-detailed {
+  width: min(720px, calc(100vw - 32px));
+}
+
+.month-calc-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.month-calc-header h2 {
+  margin: 0 0 4px;
+  color: var(--text);
+  font-size: 18px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.month-calc-header p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.month-calc-close {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.month-calc-month {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 12px;
+}
+
+.month-calc-month span {
+  font-weight: 700;
+}
+
+.month-calc-modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.month-calc-modes button {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.month-calc-modes button span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.month-calc-modes button.is-active {
+  border-color: rgba(37, 99, 235, 0.48);
+  background: rgba(37, 99, 235, 0.1);
+}
+
+.month-calc-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.month-calc-weekday {
+  padding: 4px 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.month-calc-blank {
+  min-height: 38px;
+}
+
+.month-calc-day {
+  aspect-ratio: 1;
+  min-width: 0;
+  padding: 0;
+  border-radius: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.month-calc-day.is-weekend:not(.is-selected) {
+  color: #9ca3af;
+  background: #f9fafb;
+}
+
+.month-calc-day.is-selected {
+  border-color: rgba(37, 99, 235, 0.5);
+  background: #2563eb;
+  color: #fff;
+}
+
+.month-calc-day:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.month-calc-detail-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card-2);
+  cursor: pointer;
+}
+
+.month-calc-detail-toggle input {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+}
+
+.month-calc-detail-toggle > span {
+  display: grid;
+  gap: 2px;
+}
+
+.month-calc-detail-toggle strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.month-calc-detail-toggle small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.month-calc-details {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card-2);
+}
+
+.month-calc-defaults {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.month-calc-defaults label,
+.month-calc-daily-row label {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+
+.month-calc-defaults span,
+.month-calc-daily-row label span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.month-calc-defaults input,
+.month-calc-daily-row input {
+  width: 100%;
+  min-width: 0;
+}
+
+.month-calc-daily-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.month-calc-daily-header span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.month-calc-daily-list {
+  display: grid;
+  gap: 7px;
+  max-height: 250px;
+  margin-top: 8px;
+  padding-right: 3px;
+  overflow: auto;
+}
+
+.month-calc-daily-row {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) 86px 86px 76px;
+  align-items: end;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--card);
+}
+
+.month-calc-daily-date {
+  align-self: center;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.month-calc-daily-total {
+  align-self: center;
+  padding: 7px 8px;
+  border-radius: 9px;
+  background: rgba(37, 99, 235, 0.1);
+  color: #1d4ed8;
+  font-size: 12px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.month-calc-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--card-2);
+}
+
+.month-calc-summary > div {
+  display: grid;
+  gap: 2px;
+}
+
+.month-calc-summary span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.month-calc-estimated-total {
+  color: #1d4ed8;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.month-calc-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.month-calc-remove {
+  margin-right: auto;
+  color: #b91c1c;
+}
+
+@media (max-width: 520px) {
+  .month-calc-backdrop {
+    padding: 8px;
+  }
+
+  .month-calc-dialog {
+    width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+    padding: 14px;
+  }
+
+  .month-calc-modes {
+    grid-template-columns: 1fr;
+  }
+
+  .month-calc-defaults {
+    grid-template-columns: 1fr;
+  }
+
+  .month-calc-daily-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .month-calc-daily-date {
+    grid-column: 1 / -1;
+  }
+
+  .month-calc-daily-total {
+    grid-column: 2;
+    justify-self: end;
+    min-width: 76px;
+  }
+
+  .month-calc-actions {
+    flex-wrap: wrap;
+  }
+
+  .month-calc-remove {
+    width: 100%;
+    margin-right: 0;
+  }
+}
+
 /* Footer actions (Preview / Generate) */
 .actions,
 .footer-actions {
@@ -326,4 +786,5 @@ table th {
   .grid-2 {
     grid-template-columns: 1fr;
   }
+
 }

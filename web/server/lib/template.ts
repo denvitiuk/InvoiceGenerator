@@ -7,7 +7,7 @@ import type { Locale } from "date-fns";
 import { de, enUS, ru, bg, tr, uk } from "date-fns/locale";
 
 import { preloadInvoiceDicts, registerTHelper, resolveLang, type Lang } from "./i18n";
-import { ExtraImage, InvoiceData, InvoiceTheme, LineItem } from "@/types/invoice";
+import { ExtraImage, InvoiceData, InvoiceTheme, LineItem, MonthlyCalculation } from "@/types/invoice";
 
 
 const hbs = Handlebars.create();
@@ -28,6 +28,155 @@ const BASE_TPL = path.join(TPL_DIR, "base.hbs");
 const STYLES_CSS = path.join(TPL_DIR, "styles.css");
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
+
+function localeCode(lang: Lang): string {
+  return lang === "de" ? "de-DE" :
+    lang === "ru" ? "ru-RU" :
+    lang === "bg" ? "bg-BG" :
+    lang === "tr" ? "tr-TR" :
+    lang === "uk" ? "uk-UA" :
+    "en-US";
+}
+
+function escapeHtml(value: unknown): string {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function legacyDescriptionToHtml(value: unknown): string {
+  return escapeHtml(value)
+    .replace(/\*\*([\s\S]+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\r\n?|\n/g, "<br />");
+}
+
+function sanitizeDescriptionHtml(value: unknown): string {
+  return escapeHtml(value)
+    .replace(/&lt;(?:strong|b)&gt;/gi, "<strong>")
+    .replace(/&lt;\/(?:strong|b)&gt;/gi, "</strong>")
+    .replace(/&lt;br\s*\/?&gt;/gi, "<br />");
+}
+
+function lineItemDescriptionToHtml(item: LineItem): string {
+  return typeof item.descriptionHtml === "string"
+    ? sanitizeDescriptionHtml(item.descriptionHtml)
+    : legacyDescriptionToHtml(item.description);
+}
+
+function monthlyCalculationToModel(calculation: MonthlyCalculation | undefined, lang: Lang) {
+  if (!calculation || !/^\d{4}-(0[1-9]|1[0-2])$/.test(calculation.month)) return null;
+
+  const selectedDates = Array.from(
+    new Set(
+      (Array.isArray(calculation.selectedDates) ? calculation.selectedDates : [])
+        .filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date) && date.startsWith(`${calculation.month}-`))
+    )
+  ).sort();
+  if (!selectedDates.length) return null;
+
+  const [year, month] = calculation.month.split("-").map(Number);
+  const monthLabel = new Intl.DateTimeFormat(localeCode(lang), {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(year, month - 1, 1)));
+  const count = selectedDates.length;
+  const countLabel =
+    lang === "de" ? (calculation.mode === "weekdays" ? `${count} Arbeitstage` : `${count} ausgewählte Tage`) :
+    lang === "ru" ? (calculation.mode === "weekdays" ? `${count} будних дней` : `Выбрано дней: ${count}`) :
+    lang === "bg" ? (calculation.mode === "weekdays" ? `${count} работни дни` : `Избрани дни: ${count}`) :
+    lang === "tr" ? (calculation.mode === "weekdays" ? `${count} iş günü` : `${count} seçili gün`) :
+    lang === "uk" ? (calculation.mode === "weekdays" ? `${count} робочих днів` : `Вибрано днів: ${count}`) :
+    calculation.mode === "weekdays" ? `${count} working days` : `${count} selected days`;
+
+  return {
+    monthLabel,
+    countLabel,
+    datesLabel:
+      calculation.mode === "selected"
+        ? selectedDates.map((date) => date.slice(8, 10)).join(", ")
+        : "",
+  };
+}
+
+function formatQuantity(value: number, lang: Lang): string {
+  return new Intl.NumberFormat(localeCode(lang), {
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function dailyEntryDescription(
+  dateLabel: string,
+  people: number,
+  hours: number,
+  lang: Lang
+): string {
+  const hoursLabel = formatQuantity(hours, lang);
+  if (lang === "de") {
+    return `${dateLabel} · ${people} ${people === 1 ? "Person" : "Personen"} × ${hoursLabel} Std.`;
+  }
+  if (lang === "ru") return `${dateLabel} · ${people} чел. × ${hoursLabel} ч`;
+  if (lang === "bg") return `${dateLabel} · ${people} души × ${hoursLabel} ч`;
+  if (lang === "tr") return `${dateLabel} · ${people} kişi × ${hoursLabel} sa.`;
+  if (lang === "uk") return `${dateLabel} · ${people} ос. × ${hoursLabel} год.`;
+  return `${dateLabel} · ${people} ${people === 1 ? "person" : "people"} × ${hoursLabel} h`;
+}
+
+function dailyBreakdownRows(item: LineItem, lang: Lang, currency: string) {
+  const calculation = item.monthlyCalculation;
+  if (!calculation?.detailed || !Array.isArray(calculation.dailyEntries)) return [];
+
+  const selectedDates = new Set(calculation.selectedDates || []);
+  const entriesByDate = new Map(
+    calculation.dailyEntries
+    .filter(
+      (entry) => {
+        if (
+          !/^\d{4}-\d{2}-\d{2}$/.test(entry.date) ||
+          !entry.date.startsWith(`${calculation.month}-`) ||
+          !selectedDates.has(entry.date)
+        ) {
+          return false;
+        }
+        const parsed = new Date(`${entry.date}T00:00:00Z`);
+        return !Number.isNaN(parsed.getTime()) &&
+          parsed.toISOString().slice(0, 10) === entry.date;
+      }
+    )
+    .map((entry) => [entry.date, entry] as const)
+  );
+
+  return Array.from(entriesByDate.values())
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((entry) => {
+      const people = Number.isFinite(entry.people)
+        ? Math.max(1, Math.floor(entry.people))
+        : 1;
+      const hours = Number.isFinite(entry.hours) ? Math.max(0, entry.hours) : 0;
+      const quantity = r2(people * hours);
+      const dateLabel = new Intl.DateTimeFormat(localeCode(lang), {
+        weekday: "short",
+        day: "2-digit",
+        month: "2-digit",
+        timeZone: "UTC",
+      }).format(new Date(`${entry.date}T00:00:00Z`));
+
+      return {
+        description: escapeHtml(
+          dailyEntryDescription(dateLabel, people, hours, lang)
+        ),
+        qty: formatQuantity(quantity, lang),
+        unit: escapeHtml(item.unit || "h"),
+        unitPrice: fmtMoney(item.unitPrice || 0, currency, lang),
+        vatRate: item.vatRate ? `${item.vatRate}%` : "0%",
+        total: fmtMoney(r2(quantity * (item.unitPrice || 0)), currency, lang),
+        _qty: quantity,
+      };
+    });
+}
 
 function defaultTheme(): InvoiceTheme {
   return {
@@ -107,14 +256,7 @@ function themeToCssVars(theme?: InvoiceTheme): string {
 }
 
 function fmtMoney(n: number, currency: string, lang: Lang) {
-  const locale =
-    lang === "de" ? "de-DE" :
-    lang === "ru" ? "ru-RU" :
-    lang === "bg" ? "bg-BG" :
-    lang === "tr" ? "tr-TR" :
-    lang === "uk" ? "uk-UA" :
-    "en-US";
-  return new Intl.NumberFormat(locale, { style: "currency", currency }).format(n);
+  return new Intl.NumberFormat(localeCode(lang), { style: "currency", currency }).format(n);
 }
 
 function toDisplayDate(iso: string, lang: Lang) {
@@ -174,10 +316,19 @@ export interface BuildHtmlOptions {
 
 export function calcModel(data: InvoiceData, lang: Lang, baseUrl?: string) {
   const rows = (data.items || []).map((it: LineItem) => {
-    const net = r2((it.qty || 0) * (it.unitPrice || 0));
+    const dailyRows = dailyBreakdownRows(it, lang, data.currency);
+    const detailed = dailyRows.length > 0;
+    const quantity = detailed
+      ? r2(dailyRows.reduce((sum, row) => sum + row._qty, 0))
+      : it.qty || 0;
+    const net = r2(quantity * (it.unitPrice || 0));
     return {
-      description: it.description,
-      qty: it.qty,
+      group: String(it.group || "").trim(),
+      descriptionHtml: lineItemDescriptionToHtml(it),
+      monthlyCalculation: monthlyCalculationToModel(it.monthlyCalculation, lang),
+      detailed,
+      dailyRows,
+      qty: quantity,
       unit: it.unit ?? "",
       unitPrice: fmtMoney(it.unitPrice, data.currency, lang),
       vatRate: it.vatRate ? `${it.vatRate}%` : "0%",
@@ -186,6 +337,22 @@ export function calcModel(data: InvoiceData, lang: Lang, baseUrl?: string) {
       _r: it.vatRate || 0,
     };
   });
+
+  // Stable grouping: groups keep the order in which they first appear, while
+  // all items with the same group are rendered together under one heading.
+  const rowsByGroup = new Map<string, typeof rows>();
+  for (const row of rows) {
+    const groupRows = rowsByGroup.get(row.group) || [];
+    groupRows.push(row);
+    rowsByGroup.set(row.group, groupRows);
+  }
+  const groupedRows: any[] = [];
+  for (const [group, groupRows] of rowsByGroup) {
+    if (group) {
+      groupedRows.push({ isGroup: true, groupTitle: escapeHtml(group) });
+    }
+    groupedRows.push(...groupRows);
+  }
 
   const subtotalNet = r2(rows.reduce((s: number, r: any) => s + (r._net || 0), 0));
   const vatMap = new Map<number, number>();
@@ -245,7 +412,7 @@ export function calcModel(data: InvoiceData, lang: Lang, baseUrl?: string) {
       : null,
     paymentTerms,
     showPaymentBox: Boolean(paymentTerms) || Boolean(data.company?.iban) || Boolean(data.company?.bic) || Boolean(data.company?.bankName),
-    itemRows: rows,
+    itemRows: groupedRows,
     subtotal: fmtMoney(subtotalNet, data.currency, lang),
     vatBlocks: data.kleinunternehmer ? [] : vatBlocks,
     grandTotal: fmtMoney(grand, data.currency, lang),

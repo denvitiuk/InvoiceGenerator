@@ -26,8 +26,27 @@ export interface ClientInfo {
     ustId?: string;
 }
 
+export type MonthlyCalculationMode = "weekdays" | "selected";
+
+export interface MonthlyDailyEntry {
+    date: string;
+    people: number;
+    hours: number; // hours per person
+}
+
+export interface MonthlyCalculation {
+    month: string; // YYYY-MM
+    mode: MonthlyCalculationMode;
+    selectedDates: string[]; // ISO dates included in the calculation
+    detailed?: boolean;
+    dailyEntries?: MonthlyDailyEntry[];
+}
+
 export interface LineItem {
+    group?: string; // optional object/project group shown as a heading above related items
     description: string;
+    descriptionHtml?: string; // sanitized rich text; currently supports bold and line breaks
+    monthlyCalculation?: MonthlyCalculation;
     qty: number;
     unit?: string;
     unitPrice: number; // net price per unit

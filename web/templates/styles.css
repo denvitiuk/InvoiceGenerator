@@ -121,6 +121,59 @@ h2 {
 table { width: 100%; border-collapse: collapse; margin-top: 8px; }
 th, td { padding: 8px; border-bottom: 1px solid var(--c-border); vertical-align: top; }
 th { text-align: left; background: var(--c-surface); }
+.item-group-row td {
+    padding: 11px 8px 6px;
+    background: var(--c-surface);
+    border-bottom: 2px solid var(--c-accent);
+    color: var(--c-primary);
+    font-weight: 700;
+}
+.item-description strong { font-weight: 700; }
+.monthly-calculation {
+    margin-top: 5px;
+    color: var(--c-muted);
+    font-size: 11px;
+    line-height: 1.35;
+}
+.monthly-calculation-dates {
+    margin-top: 2px;
+    letter-spacing: 0.02em;
+}
+.detailed-parent-row td {
+    padding-top: 11px;
+    padding-bottom: 9px;
+    border-bottom: 2px solid var(--c-accent);
+}
+.detailed-parent-row .item-description {
+    color: var(--c-primary);
+    font-weight: 700;
+}
+.detailed-parent-row .monthly-calculation {
+    font-weight: 400;
+}
+.daily-breakdown-row {
+    break-inside: avoid;
+}
+.daily-breakdown-row td {
+    padding-top: 6px;
+    padding-bottom: 6px;
+    background: var(--c-surface);
+    font-size: 11px;
+    line-height: 1.35;
+}
+.daily-breakdown-row:nth-child(even) td {
+    background: var(--c-bg);
+}
+.daily-breakdown-description {
+    padding-left: 15px;
+    border-left: 3px solid var(--c-accent);
+    font-weight: 600;
+}
+.daily-breakdown-total {
+    color: var(--c-primary);
+    font-weight: 700;
+    white-space: nowrap;
+}
 
 .totals { margin-top: 8px; width: 60%; margin-left: auto; }
 .totals td { padding: 6px 8px; }

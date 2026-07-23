@@ -84,14 +84,49 @@
     </thead>
     <tbody>
       {{#each itemRows}}
-        <tr>
-          <td>{{this.description}}</td>
-          <td class="right">{{this.qty}}</td>
-          <td>{{this.unit}}</td>
-          <td class="right">{{this.unitPrice}}</td>
-          <td class="right">{{this.vatRate}}</td>
-          <td class="right">{{this.total}}</td>
-        </tr>
+        {{#if this.isGroup}}
+          <tr class="item-group-row">
+            <td colspan="6">{{{this.groupTitle}}}</td>
+          </tr>
+        {{else}}
+          <tr class="{{#if this.detailed}}detailed-parent-row{{/if}}">
+            <td class="item-description">
+              {{{this.descriptionHtml}}}
+              {{#if this.monthlyCalculation}}
+                <div class="monthly-calculation">
+                  <strong>{{this.monthlyCalculation.monthLabel}}</strong>
+                  <span> · {{this.monthlyCalculation.countLabel}}</span>
+                  {{#if this.monthlyCalculation.datesLabel}}
+                    <div class="monthly-calculation-dates">{{this.monthlyCalculation.datesLabel}}</div>
+                  {{/if}}
+                </div>
+              {{/if}}
+            </td>
+            {{#if this.detailed}}
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+            {{else}}
+              <td class="right">{{this.qty}}</td>
+              <td>{{this.unit}}</td>
+              <td class="right">{{this.unitPrice}}</td>
+              <td class="right">{{this.vatRate}}</td>
+              <td class="right">{{this.total}}</td>
+            {{/if}}
+          </tr>
+          {{#each this.dailyRows}}
+            <tr class="daily-breakdown-row">
+              <td class="daily-breakdown-description">{{{this.description}}}</td>
+              <td class="right">{{this.qty}}</td>
+              <td>{{this.unit}}</td>
+              <td class="right">{{this.unitPrice}}</td>
+              <td class="right">{{this.vatRate}}</td>
+              <td class="right daily-breakdown-total">{{this.total}}</td>
+            </tr>
+          {{/each}}
+        {{/if}}
       {{/each}}
     </tbody>
   </table>
