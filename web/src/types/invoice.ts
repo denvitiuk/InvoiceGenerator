@@ -51,6 +51,13 @@ export interface LineItem {
     unit?: string;
     unitPrice: number; // net price per unit
     vatRate: number;   // e.g. 0, 7, 19
+
+    // Connected-invoice mode only: links this row back to a backend
+    // invoiceWorkItemId (absent for manual/local rows). Internal metadata —
+    // never rendered into the PDF/DOCX output and stripped before a row is
+    // ever saved into a reusable plaintext template.
+    serverItemId?: string;
+    serverExcluded?: boolean;
 }
 
 export interface ExtraTable {

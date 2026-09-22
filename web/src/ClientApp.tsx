@@ -1,8 +1,11 @@
 // web/src/ClientApp.tsx
 'use client';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import AppShell from './components/AppShell';
 import { I18nProvider } from './lib/i18n';
+import { readInvoiceSessionToken } from './connected/session/fragmentToken';
+import { ConnectedSessionProvider } from './connected/session/ConnectedSessionContext';
+import { hasStoredSession } from './connected/session/editorToken';
 
 const SUPPORTED = ['en','de','ru','bg','tr','uk'] as const;
 type Lang = typeof SUPPORTED[number];
@@ -28,9 +31,30 @@ function detectLang(): Lang {
 
 export default function ClientApp() {
     const lang = useMemo(detectLang, []);
+    // Read (and immediately strip) the one-shot connected-invoice token exactly
+    // once, before the first paint that could otherwise leave it visible in the
+    // URL bar. Never persisted, never logged. If there's no fresh token but a
+    // connected editor session survived from before a reload (sessionStorage),
+    // mount the connected provider anyway with a null token — it restores from
+    // that stored session instead of exchanging again. This also covers an
+    // *expired* stored session: mounting the provider is what lets it show a
+    // "session expired" screen instead of silently falling through to a blank
+    // standalone editor.
+    const [connected] = useState<{ shouldMount: boolean; token: string | null }>(() => {
+        if (typeof window === 'undefined') return { shouldMount: false, token: null };
+        const token = readInvoiceSessionToken();
+        return { shouldMount: Boolean(token) || hasStoredSession(), token };
+    });
+
     return (
         <I18nProvider defaultLang={lang}>
-            <AppShell />
+            {connected.shouldMount ? (
+                <ConnectedSessionProvider token={connected.token}>
+                    <AppShell />
+                </ConnectedSessionProvider>
+            ) : (
+                <AppShell />
+            )}
         </I18nProvider>
     );
 }

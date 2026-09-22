@@ -4,6 +4,10 @@ import { useI18n, useT } from "../lib/i18n";
 import { previewInvoice, renderInvoiceBlob, renderInvoiceDocxBlob, renderAllBlob, openInNewTab, uploadFile } from "../lib/api";
 
 import PreviewPane from "./PreviewPane";
+import { useConnectedSessionOptional } from "../connected/session/ConnectedSessionContext";
+import ConnectedBanner from "../connected/components/ConnectedBanner";
+import ConnectedItemsSection from "../connected/components/ConnectedItemsSection";
+import ConnectedNumberField from "../connected/components/ConnectedNumberField";
 import {Lang} from "../../server/lib/i18n";
 import {
   InvoiceData,
@@ -742,20 +746,54 @@ export default function AppShell() {
   const t = useT();
   const { lang: uiLang, setLang: setUILangCtx } = useI18n();
 
-  // Store selectors
-  const invoice = useStore((s) => s.invoice as InvoiceData);
-  const invoiceLang = useStore((s) => s.invoiceLang as Lang);
-  const setInvoiceLang = useStore((s) => s.setInvoiceLang);
-  const setCurrency = useStore((s) => s.setCurrency);
-  const setDueDays = useStore((s) => s.setDueDays);
-  const patchCompany = useStore((s) => s.patchCompany);
-  const patchClient = useStore((s) => s.patchClient);
-  const patchInvoice = React.useCallback(
+  // Connected-invoice session (null in standalone mode — the seam this whole
+  // component branches on). See src/connected/session/ConnectedSessionContext.tsx.
+  const connected = useConnectedSessionOptional();
+
+  // Store selectors. In connected mode these are sourced from the connected
+  // session's own (memory-only) store instead of the standalone `useStore` —
+  // same method names either way, so the JSX below never needs to know which
+  // one it's talking to. Items are the one exception (see the Items section).
+  const standaloneInvoice = useStore((s) => s.invoice as InvoiceData);
+  const standaloneInvoiceLang = useStore((s) => s.invoiceLang as Lang);
+  const standaloneSetInvoiceLang = useStore((s) => s.setInvoiceLang);
+  const standaloneSetCurrency = useStore((s) => s.setCurrency);
+  const standaloneSetDueDays = useStore((s) => s.setDueDays);
+  const standalonePatchCompany = useStore((s) => s.patchCompany);
+  const standalonePatchClient = useStore((s) => s.patchClient);
+  const standalonePatchInvoice = React.useCallback(
     (patch: Partial<InvoiceData>) => {
       useStore.setState((s: any) => ({ invoice: { ...s.invoice, ...patch } }));
     },
     []
   );
+
+  // While a connected session hasn't reached a usable state yet (still
+  // connecting, or blocked on an error/reconnect/unsupported-browser/vault
+  // screen), ConnectedBanner renders that screen full-height and the rest of
+  // the editor form below it must not render — there is no invoice data to
+  // show yet, and showing an empty/disabled form under a hard error is
+  // confusing rather than helpful.
+  const connectedBlockingPhases = new Set([
+    "unsupported_browser",
+    "exchange_error",
+    "awaiting_reconnect",
+    "session_expired",
+    "vault_unavailable",
+  ]);
+  const connectedBlocking = Boolean(
+    connected && (connected.loading || connectedBlockingPhases.has(connected.state.phase))
+  );
+
+  const invoice = connected ? connected.editor.invoice : standaloneInvoice;
+  const invoiceLang = (connected ? connected.editor.invoiceLang : standaloneInvoiceLang) as Lang;
+  const setInvoiceLang = connected ? (connected.editor.setInvoiceLang as (l: Lang) => void) : standaloneSetInvoiceLang;
+  const setCurrency = connected ? connected.editor.setCurrency : standaloneSetCurrency;
+  const setDueDays = connected ? connected.editor.setDueDays : standaloneSetDueDays;
+  const patchCompany = connected ? connected.editor.patchCompany : standalonePatchCompany;
+  const patchClient = connected ? connected.editor.patchClient : standalonePatchClient;
+  const patchInvoice = connected ? connected.editor.patchInvoice : standalonePatchInvoice;
+
   const addItem = useStore((s) => s.addItem);
   const updateItem = useStore((s) => s.updateItem);
   const removeItem = useStore((s) => s.removeItem);
@@ -916,6 +954,13 @@ export default function AppShell() {
   React.useEffect(() => {
     if (didAutoApplyDefaultRef.current) return;
     if (typeof window === "undefined") return;
+    // Never auto-apply a standalone template into a connected session — a
+    // connected invoice can look transiently "empty" before its work package
+    // loads, and it must never be silently overwritten by local template data.
+    if (connected) {
+      didAutoApplyDefaultRef.current = true;
+      return;
+    }
 
     // If there is a persisted invoice draft, never auto-apply.
     const hasPersistedDraft = !!window.localStorage.getItem(INVOICE_STORE_LS_KEY);
@@ -1333,7 +1378,10 @@ export default function AppShell() {
   // Layout ---------------------------------------------------------------
   return (
     <>
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(320px, 560px) 1fr", height: "100vh" }}>
+      <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+      {connected && <ConnectedBanner session={connected} />}
+      {!connectedBlocking && (
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(320px, 560px) 1fr", flex: 1, minHeight: 0 }}>
       {/* Left column: form */}
       <div style={{ padding: 16, overflow: "auto", borderRight: "1px solid #eee" }}>
         <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
@@ -1733,27 +1781,33 @@ export default function AppShell() {
             />
           </div>
           {/* Numbering mode and number controls */}
-          <div>
-            <label style={{ display: "block", fontSize: 12, opacity: 0.7 }}>{t("numbering_mode") || "Numbering mode"}</label>
-            <select
-              value={invoice.numberingMode ?? "auto"}
-              onChange={e => patchInvoice({ numberingMode: e.target.value as NumberingMode })}
-              style={{ width: "100%" }}
-            >
-              <option value="auto">{t("numbering_auto") || "Auto"}</option>
-              <option value="manual">{t("numbering_manual") || "Manual"}</option>
-            </select>
-          </div>
-          <div>
-            <label style={{ display: "block", fontSize: 12, opacity: 0.7 }}>{t("number") || "Number"}</label>
-            <input
-              value={invoice.number || ""}
-              onChange={e => patchInvoice({ number: e.target.value })}
-              placeholder={t("number") || "Number"}
-              style={{ width: "100%" }}
-              disabled={(invoice.numberingMode ?? "auto") === "auto"}
-            />
-          </div>
+          {connected ? (
+            <ConnectedNumberField session={connected} />
+          ) : (
+            <>
+              <div>
+                <label style={{ display: "block", fontSize: 12, opacity: 0.7 }}>{t("numbering_mode") || "Numbering mode"}</label>
+                <select
+                  value={invoice.numberingMode ?? "auto"}
+                  onChange={e => patchInvoice({ numberingMode: e.target.value as NumberingMode })}
+                  style={{ width: "100%" }}
+                >
+                  <option value="auto">{t("numbering_auto") || "Auto"}</option>
+                  <option value="manual">{t("numbering_manual") || "Manual"}</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: 12, opacity: 0.7 }}>{t("number") || "Number"}</label>
+                <input
+                  value={invoice.number || ""}
+                  onChange={e => patchInvoice({ number: e.target.value })}
+                  placeholder={t("number") || "Number"}
+                  style={{ width: "100%" }}
+                  disabled={(invoice.numberingMode ?? "auto") === "auto"}
+                />
+              </div>
+            </>
+          )}
           <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <input
               type="checkbox"
@@ -1774,6 +1828,9 @@ export default function AppShell() {
         </section>
 
         {/* Items */}
+        {connected ? (
+          <ConnectedItemsSection session={connected} />
+        ) : (
         <section style={{ marginTop: 16 }}>
           <h3 style={{ marginTop: 0 }}>{t("section_items")}</h3>
           <datalist id="invoice-item-groups">
@@ -1874,6 +1931,7 @@ export default function AppShell() {
           ))}
           <button onClick={() => addItem({ qty: 1, unitPrice: 0, vatRate: 19 })} style={{ marginTop: 6 }}>{t("add_item")}</button>
         </section>
+        )}
 
         {/* Totals (quick view) */}
         <section style={{ marginTop: 16, fontSize: 14 }}>
@@ -1893,6 +1951,7 @@ export default function AppShell() {
 
         {/* Actions */}
         <section style={{ marginTop: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {!connected && (
           <div
             style={{
               display: "flex",
@@ -1953,6 +2012,7 @@ export default function AppShell() {
               {selectedTemplateId && selectedTemplateId === defaultTemplateId ? (t("template_default_clear") || "Default ✓") : (t("template_default_set") || "Make default")}
             </button>
           </div>
+          )}
           <button
             type="button"
             onClick={() => {
@@ -2113,6 +2173,8 @@ export default function AppShell() {
 
       {/* Right column: live preview */}
         <PreviewPane invoice={invoice} language={invoiceLang} debounceMs={250} />
+      </div>
+      )}
       </div>
 
       {monthlyCalculationItemIndex !== null && monthlyCalculationItem && (

@@ -20,7 +20,9 @@
     "electron:pack": "npm run build:local && electron-builder --dir",
     "electron:dist:mac": "npm run build:local && electron-builder --mac",
     "electron:dist:win": "npm run build:local && electron-builder --win",
-    "electron:dist:win:x64": "npm run build:local && electron-builder --win --x64"
+    "electron:dist:win:x64": "npm run build:local && electron-builder --win --x64",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@sparticuz/chromium": "^141.0.0",
@@ -37,6 +39,7 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@testing-library/react": "^14.3.1",
     "@types/archiver": "^7.0.0",
     "@types/html-to-docx": "^1.8.0",
     "@types/multer": "^2.0.0",
@@ -45,7 +48,11 @@
     "@types/react-dom": "^18.2.24",
     "electron": "^33.4.11",
     "electron-builder": "^25.1.8",
-    "typescript": "^5.9.2"
+    "fake-indexeddb": "^6.0.0",
+    "jsdom": "^25.0.1",
+    "typescript": "^5.9.2",
+    "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^2.1.9"
   },
   "build": {
     "appId": "de.invoicegenerator.desktop",
@@ -72,13 +79,17 @@
       "main": "electron/main.mjs"
     },
     "mac": {
-      "target": ["zip"],
+      "target": [
+        "zip"
+      ],
       "category": "public.app-category.business",
       "identity": null,
       "icon": "build/icon.icns"
     },
     "win": {
-      "target": ["zip"],
+      "target": [
+        "zip"
+      ],
       "signAndEditExecutable": false
     },
     "directories": {
