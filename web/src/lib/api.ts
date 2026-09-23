@@ -2,6 +2,7 @@
 // We intentionally use same-origin `/api/*` endpoints (no separate Express server).
 
 import { InvoiceData, RenderAllResponse, RenderResponse, UploadResponse } from "@/types/invoice";
+import { safeFileNamePart } from "./safeFileName";
 
 export type Lang = "en" | "de" | "ru" | "bg" | "tr" | "uk";
 
@@ -113,7 +114,8 @@ export async function renderInvoiceBlob(
 ): Promise<{ blob: Blob; filename: string }> {
   const fileName = (data as any)?.fileName || undefined;
   const { blob, filename } = await postBlob(`/render?download=1`, { data, language, fileName });
-  const fallback = `${`rechnung-${data.number}`}${language ? `-${language}` : ""}.pdf`;
+  // Number is sanitized for the file name only (e.g. "RE/2026/1" -> "RE-2026-1").
+  const fallback = `${`rechnung-${safeFileNamePart(data.number) || "invoice"}`}${language ? `-${language}` : ""}.pdf`;
   return {
     blob,
     filename: filename || (fileName ? (fileName.endsWith(".pdf") ? fileName : fileName + ".pdf") : fallback),

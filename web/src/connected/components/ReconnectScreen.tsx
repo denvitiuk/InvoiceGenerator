@@ -10,13 +10,17 @@ const ERROR_KEY_BY_KIND: Record<ApiErrorKind, string> = {
   rate_limited: "connected_error_rate_limited",
   server_error: "connected_error_server",
   network_error: "connected_error_network",
+  invalid_contract: "connected_error_invalid_contract",
 };
 
 export default function ReconnectScreen({
   errorKind,
+  errorDetail,
   onReconnect,
 }: {
   errorKind?: ApiErrorKind;
+  /** Field-level contract problems only (never tokens or customer data). */
+  errorDetail?: string | null;
   onReconnect: (invoiceId: string, shortCode: string) => void;
 }) {
   const t = useT();
@@ -37,6 +41,9 @@ export default function ReconnectScreen({
       {errorKind && (
         <div style={{ marginBottom: 10, color: "#92400e", fontSize: 13 }}>
           {t(ERROR_KEY_BY_KIND[errorKind]) || "The session link could not be used."}
+          {errorKind === "invalid_contract" && errorDetail && (
+            <div style={{ marginTop: 6, fontFamily: "monospace", fontSize: 12, wordBreak: "break-word" }}>{errorDetail}</div>
+          )}
         </div>
       )}
       <h3 style={{ marginTop: 0 }}>{t("connected_reconnect_title") || "Reconnect to this invoice"}</h3>

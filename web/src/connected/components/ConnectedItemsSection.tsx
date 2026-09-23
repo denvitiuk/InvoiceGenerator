@@ -1,6 +1,9 @@
 import React, { useState } from "react";
 import { useT } from "@/lib/i18n";
-import type { LineItem } from "@/types/invoice";
+import { isZeroRatedCategory, TAX_CATEGORIES } from "@/lib/invoiceTax";
+import type { LineItem, TaxCategory } from "@/types/invoice";
+import { manualLineTaxProblem, OPEN_STATUSES } from "../finalize/finalizeChecks";
+import { defaultManualLineTax } from "../mapping/workPackageMapping";
 import { useConnectedInvoiceStore } from "../store/connectedInvoiceStore";
 import type { ConnectedSessionValue } from "../session/useConnectedSession";
 import type { WorkPackageLineDTO } from "../types";
@@ -66,9 +69,20 @@ function ServerLineRow({
         </div>
         <div className="invoice-item-field">
           <label>{t("vat_rate")}</label>
-          <input value={line.vatRate} disabled />
+          <input value={`${line.vatRate} % · ${t(`connected_tax_category_${line.taxCategory}`)}`} disabled />
         </div>
       </div>
+      <div className="connected-line-amounts">
+        <span>{t("connected_vat_net")} {line.netAmount}</span>
+        <span>{t("connected_vat_amount")} {line.vatAmount}</span>
+        <span>{t("connected_vat_gross")} {line.grossAmount}</span>
+        {line.workerCount > 0 && <span>{t("connected_worker_count", { count: line.workerCount })}</span>}
+      </div>
+      {line.taxExemptionReason && (
+        <div className="connected-muted" style={{ fontSize: 12, marginTop: 4 }}>
+          {t("connected_tax_exemption_reason")}: {line.taxExemptionReason}
+        </div>
+      )}
       {line.requiresReview && (
         <div style={{ fontSize: 12, color: "#9a3412", marginTop: 4 }}>
           {t("connected_item_requires_review") || "Requires review"}
@@ -134,11 +148,48 @@ function ManualLineRow({
           <label>{t("vat_rate")}</label>
           <input
             value={String(item.vatRate)}
-            disabled={readOnly}
+            disabled={readOnly || isZeroRatedCategory(item.taxCategory)}
             onChange={(e) => onChange({ vatRate: Number(e.target.value.replace(",", ".")) || 0 })}
           />
         </div>
+        <div className="invoice-item-field">
+          <label>{t("connected_tax_category")}</label>
+          <select
+            value={item.taxCategory ?? ""}
+            disabled={readOnly}
+            onChange={(e) => {
+              const taxCategory = (e.target.value || undefined) as TaxCategory | undefined;
+              onChange(
+                isZeroRatedCategory(taxCategory)
+                  ? { taxCategory, vatRate: 0 }
+                  : { taxCategory, taxExemptionReason: undefined }
+              );
+            }}
+          >
+            <option value="">—</option>
+            {TAX_CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {t(`connected_tax_category_${c}`)}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
+      {isZeroRatedCategory(item.taxCategory) && (
+        <div className="invoice-item-field" style={{ marginTop: 6 }}>
+          <label>{t("connected_tax_exemption_reason")}</label>
+          <input
+            value={item.taxExemptionReason ?? ""}
+            disabled={readOnly}
+            maxLength={500}
+            placeholder={t("connected_tax_exemption_reason_placeholder")}
+            onChange={(e) => onChange({ taxExemptionReason: e.target.value })}
+          />
+        </div>
+      )}
+      {manualLineTaxProblem(item) && (
+        <div style={{ fontSize: 12, color: "#9a3412", marginTop: 4 }}>{t("connected_blocker_manual_line_tax_missing")}</div>
+      )}
     </div>
   );
 }
@@ -148,9 +199,12 @@ export default function ConnectedItemsSection({ session }: { session: ConnectedS
   const manualLines = useConnectedInvoiceStore((s) => s.manualLines);
   const workPackage = session.workPackage;
   const readOnly = !session.state.context.permissions.edit || session.state.phase === "locked_finalized" || session.state.phase === "done";
+  // The backend only accepts server-line edits in open statuses (not once a
+  // number is reserved); manual rows stay editable until finalization.
+  const serverReadOnly = readOnly || !OPEN_STATUSES.has(workPackage?.status ?? "");
 
-  const activeLines = (workPackage?.lines ?? []).filter((l) => !l.isExcluded);
-  const excludedLines = (workPackage?.lines ?? []).filter((l) => l.isExcluded);
+  const activeLines = (workPackage?.items ?? []).filter((l) => !l.isExcluded);
+  const excludedLines = (workPackage?.items ?? []).filter((l) => l.isExcluded);
 
   return (
     <section style={{ marginTop: 16 }}>
@@ -160,7 +214,7 @@ export default function ConnectedItemsSection({ session }: { session: ConnectedS
         <ServerLineRow
           key={line.invoiceWorkItemId}
           line={line}
-          readOnly={readOnly}
+          readOnly={serverReadOnly}
           onCommit={(patch) => void session.patchServerItem(line.invoiceWorkItemId, patch)}
           onExclude={() => void session.excludeServerItem(line.invoiceWorkItemId)}
         />
@@ -181,7 +235,7 @@ export default function ConnectedItemsSection({ session }: { session: ConnectedS
         <button
           type="button"
           style={{ marginTop: 6 }}
-          onClick={() => session.addManualLine({ description: "", qty: 1, unitPrice: 0, vatRate: 19 })}
+          onClick={() => session.addManualLine({ description: "", qty: 1, unitPrice: 0, ...defaultManualLineTax(workPackage) })}
         >
           {t("add_item")}
         </button>
@@ -197,7 +251,7 @@ export default function ConnectedItemsSection({ session }: { session: ConnectedS
                   <label>{t("description")}</label>
                   <div style={{ fontSize: 13 }}>{line.description || line.workType || line.invoiceWorkItemId}</div>
                 </div>
-                {!readOnly && (
+                {!serverReadOnly && (
                   <button type="button" onClick={() => void session.includeServerItem(line.invoiceWorkItemId)}>
                     {t("connected_item_include") || "Include"}
                   </button>

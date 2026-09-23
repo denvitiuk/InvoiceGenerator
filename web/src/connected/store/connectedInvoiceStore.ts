@@ -23,7 +23,7 @@ import {
   reconcileOrder,
 } from "../mapping/workPackageMapping";
 import type { InvoiceVaultProfile } from "../vault/vaultTypes";
-import type { WorkPackageDTO } from "../types";
+import type { ReserveInvoiceNumberResponse, WorkPackageDTO } from "../types";
 
 type Lang = UILang;
 
@@ -36,7 +36,7 @@ function computeItems(
   lang: Lang
 ): LineItem[] {
   const activeServerById = new Map(
-    (workPackage?.lines ?? [])
+    (workPackage?.items ?? [])
       .filter((l) => !l.isExcluded)
       .map((l) => [keyForServerLine(l.invoiceWorkItemId), l] as const)
   );
@@ -57,8 +57,8 @@ function computeItems(
 
 /**
  * Merges work-package-derived fields into the header. currency/servicePeriod/
- * object/number are always backend-authoritative and safe to re-sync on every
- * fetch. issueDateISO/dueDays are only synced on the very first load, or once
+ * object/number/customerNumber are always backend-authoritative and safe to
+ * re-sync on every fetch (an unreserved number maps to "" — never a local guess). issueDateISO/dueDays are only synced on the very first load, or once
  * the backend actually reports a value — otherwise a mid-session admin edit
  * (made before the number is reserved) would get silently clobbered by a
  * background refresh that still reflects the old, unset value.
@@ -70,10 +70,12 @@ function mergeHeaderFromWorkPackage(prev: InvoiceHeader, wp: WorkPackageDTO, isF
     currency: (mapped.currency as Currency) ?? prev.currency,
     servicePeriod: mapped.servicePeriod ?? prev.servicePeriod,
     object: mapped.object ?? prev.object,
-    number: mapped.number ?? prev.number,
+    number: mapped.number ?? "",
+    customerNumber: mapped.customerNumber,
   };
   if (isFirstLoad || wp.issueDate) next.issueDateISO = mapped.issueDateISO ?? prev.issueDateISO;
   if (isFirstLoad || (wp.issueDate && wp.dueDate)) next.dueDays = mapped.dueDays ?? prev.dueDays;
+  if (isFirstLoad || wp.dueDate) next.dueDateISO = mapped.dueDateISO;
   return next;
 }
 
@@ -94,6 +96,8 @@ export interface ConnectedInvoiceState {
 
   // --- Connected-only actions ---------------------------------------------
   setWorkPackage: (wp: WorkPackageDTO) => void;
+  /** Applies a number:reserve / number:override response (backend-stored number, revision, dates). */
+  applyNumberResult: (result: ReserveInvoiceNumberResponse) => void;
   applyVaultProfile: (profile: InvoiceVaultProfile, company: CompanyInfo, seedDefaultItems: boolean) => void;
   addManualLine: (item: LineItem) => string;
   updateManualLine: (localId: string, patch: Partial<LineItem>) => void;
@@ -102,6 +106,22 @@ export interface ConnectedInvoiceState {
   loadDocumentSnapshot: (doc: EncryptedDocumentPlaintext) => void;
   exportDocumentSnapshot: () => EncryptedDocumentPlaintext;
   reset: () => void;
+}
+
+/**
+ * Keeps the previewed due date in step with a locally edited issue date /
+ * payment term. Only a preview value: number:reserve sends these dates and
+ * its response (applyNumberResult) replaces them with what the backend stored.
+ */
+function withDerivedDueDate(invoice: InvoiceData): InvoiceData {
+  const iso = invoice.issueDateISO || "";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso) || invoice.dueDays === undefined) {
+    return { ...invoice, dueDateISO: undefined };
+  }
+  const d = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return { ...invoice, dueDateISO: undefined };
+  d.setUTCDate(d.getUTCDate() + invoice.dueDays);
+  return { ...invoice, dueDateISO: d.toISOString().slice(0, 10) };
 }
 
 function safeLocalId(): string {
@@ -135,7 +155,7 @@ export const useConnectedInvoiceStore = create<ConnectedInvoiceState>()((set, ge
     set((s) => ({ invoice: { ...s.invoice, currency: cur } })),
 
   setDueDays: (days) =>
-    set((s) => ({ invoice: { ...s.invoice, dueDays: Math.max(0, Math.floor(days)) } })),
+    set((s) => ({ invoice: withDerivedDueDate({ ...s.invoice, dueDays: Math.max(0, Math.floor(days)) }) })),
 
   patchCompany: (patch) =>
     set((s) => ({ invoice: { ...s.invoice, company: { ...s.invoice.company, ...patch } } })),
@@ -144,13 +164,17 @@ export const useConnectedInvoiceStore = create<ConnectedInvoiceState>()((set, ge
     set((s) => ({ invoice: { ...s.invoice, client: { ...s.invoice.client, ...patch } } })),
 
   patchInvoice: (patch) =>
-    set((s) => ({ invoice: { ...s.invoice, ...patch } })),
+    set((s) => {
+      const next = { ...s.invoice, ...patch };
+      const datesChanged = "issueDateISO" in patch || "dueDays" in patch;
+      return { invoice: datesChanged && !("dueDateISO" in patch) ? withDerivedDueDate(next) : next };
+    }),
 
   setWorkPackage: (wp) =>
     set((s) => {
       const isFirstLoad = s.workPackage === null;
       const manualKeys = s.manualLines.map((m) => keyForManualLine(m.localId));
-      const activeLines = wp.lines.filter((l) => !l.isExcluded);
+      const activeLines = wp.items.filter((l) => !l.isExcluded);
       const nextOrder = reconcileOrder(s.order, activeLines, manualKeys);
       const header = mergeHeaderFromWorkPackage(s.invoice, wp, isFirstLoad);
       return {
@@ -159,6 +183,21 @@ export const useConnectedInvoiceStore = create<ConnectedInvoiceState>()((set, ge
         invoice: recompute(header, wp, s.manualLines, nextOrder, s.invoiceLang),
       };
     }),
+
+  applyNumberResult: (result) => {
+    const wp = get().workPackage;
+    if (!wp) return;
+    get().setWorkPackage({
+      ...wp,
+      invoiceNumber: result.invoiceNumber,
+      revision: result.revision,
+      status: result.status || wp.status,
+      issueDate: result.issueDate ?? wp.issueDate,
+      dueDate: result.dueDate ?? wp.dueDate,
+      invoiceNumberSource: result.invoiceNumberSource ?? wp.invoiceNumberSource,
+      invoiceNumberPatternSnapshot: result.invoiceNumberPatternSnapshot ?? wp.invoiceNumberPatternSnapshot,
+    });
+  },
 
   applyVaultProfile: (profile, company, seedDefaultItems) =>
     set((s) => {
@@ -214,7 +253,16 @@ export const useConnectedInvoiceStore = create<ConnectedInvoiceState>()((set, ge
 
   loadDocumentSnapshot: (doc) =>
     set((s) => {
-      const header: InvoiceHeader = { ...s.invoice, ...doc.invoiceDataSubset } as InvoiceHeader;
+      const subset: Partial<InvoiceData> = { ...doc.invoiceDataSubset };
+      // A snapshot saved for a different billing profile (the invoice's customer
+      // changed since) must never bring that other customer's recipient along.
+      if (doc.billingProfileRef && s.workPackage && doc.billingProfileRef !== s.workPackage.billingProfileRef) {
+        delete subset.client;
+      }
+      let header: InvoiceHeader = { ...s.invoice, ...subset } as InvoiceHeader;
+      // Backend-authoritative fields (number, period, object, dates once set)
+      // always win over whatever an older snapshot recorded.
+      if (s.workPackage) header = mergeHeaderFromWorkPackage(header, s.workPackage, false);
       return {
         manualLines: doc.manualLines,
         order: doc.order,
@@ -227,6 +275,7 @@ export const useConnectedInvoiceStore = create<ConnectedInvoiceState>()((set, ge
     const { items: _items, ...invoiceDataSubset } = s.invoice;
     return {
       schemaVersion: 1,
+      billingProfileRef: s.workPackage?.billingProfileRef,
       invoiceDataSubset,
       manualLines: s.manualLines,
       order: s.order,

@@ -218,3 +218,12 @@ h2, .header { break-after: avoid; }
 @media print {
     .footer-row.pagination { display: none !important; }
 }
+
+/* Connected-mode tax details */
+.invoice-number { font-size: 15px; letter-spacing: 0.01em; }
+.line-tax { font-size: 10px; line-height: 1.2; }
+.tax-totals .tax-zero-row td { color: var(--c-muted); }
+.tax-totals .tax-total-row td { border-top: 1px solid var(--c-border); }
+.tax-totals, .tax-notes { break-inside: avoid; page-break-inside: avoid; }
+.tax-notes { margin-top: 10px; margin-left: auto; width: 60%; }
+.tax-notes .note { margin-top: 4px; font-size: 12px; }

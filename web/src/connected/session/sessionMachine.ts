@@ -14,7 +14,8 @@ export type ApiErrorKind =
   | "conflict"
   | "rate_limited"
   | "server_error"
-  | "network_error";
+  | "network_error"
+  | "invalid_contract";
 
 export type SessionPhase =
   | "idle"

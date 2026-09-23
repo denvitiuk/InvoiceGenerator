@@ -6,7 +6,7 @@ export default function RequiresReviewBanner({ workPackage }: { workPackage: Wor
   const t = useT();
   if (!workPackage) return null;
 
-  const reviewLines = workPackage.lines.filter((l) => l.requiresReview && !l.isExcluded);
+  const reviewLines = workPackage.items.filter((l) => l.requiresReview && !l.isExcluded);
   if (!workPackage.requiresReview && reviewLines.length === 0) return null;
 
   return (

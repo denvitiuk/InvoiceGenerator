@@ -68,6 +68,11 @@ export function normalizeInvoice(data: Partial<InvoiceData> | undefined): Invoic
     notes: Array.isArray(d.notes) ? d.notes : [],
     theme: (d as any).theme as any,
     object: typeof (d as any).object === "string" ? String((d as any).object).trim() : "",
+    // Connected-invoice mode only (backend due date + customer number); absent in standalone.
+    dueDateISO: /^\d{4}-\d{2}-\d{2}$/.test(String((d as any).dueDateISO ?? "")) ? String((d as any).dueDateISO) : undefined,
+    customerNumber: typeof (d as any).customerNumber === "string" && (d as any).customerNumber.trim()
+      ? String((d as any).customerNumber).trim().slice(0, 64)
+      : undefined,
 
     company: {
       name: d.company?.name || "—",

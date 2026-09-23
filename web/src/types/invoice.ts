@@ -5,6 +5,10 @@ export type Lang = "de" | "en" | "ru" | "bg" | "tr" | "uk";
 
 export type Currency = "EUR" | "USD" | "GBP" | "UAH";
 
+// Mirrors the backend's InvoiceTax.TaxCategory. EXEMPT, REVERSE_CHARGE and
+// SMALL_BUSINESS are zero-rated: no VAT is charged and a legal reason is shown.
+export type TaxCategory = "STANDARD" | "REDUCED" | "EXEMPT" | "REVERSE_CHARGE" | "SMALL_BUSINESS";
+
 export interface CompanyInfo {
     name: string;
     addressLines: string[];
@@ -58,6 +62,17 @@ export interface LineItem {
     // ever saved into a reusable plaintext template.
     serverItemId?: string;
     serverExcluded?: boolean;
+
+    // Connected-invoice mode only. Server lines carry the backend's tax
+    // classification and amounts (plain decimal strings, e.g. "34.20"), which
+    // the template renders verbatim instead of recomputing. Manual rows leave
+    // the amounts unset and are computed locally (2-decimal half-up rounding).
+    taxCategory?: TaxCategory;
+    taxExemptionReason?: string;
+    netAmount?: string;
+    vatAmount?: string;
+    grossAmount?: string;
+    workerCount?: number;
 }
 
 export interface ExtraTable {
@@ -124,6 +139,11 @@ export interface InvoiceData {
     showNumberInTitle?: boolean;
     fileName?: string;
     numberingMode?: "auto" | "manual";
+
+    // Connected-invoice mode only: the backend's due date (ISO) and the
+    // customer number from the work package's customer snapshot.
+    dueDateISO?: string;
+    customerNumber?: string;
 }
 
 // ===== API request/response helpers for web/lib/api.ts =====

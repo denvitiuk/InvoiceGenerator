@@ -5,7 +5,7 @@ import ReconnectScreen from "./ReconnectScreen";
 import SessionExpiredScreen from "./SessionExpiredScreen";
 import UnsupportedBrowserNotice from "./UnsupportedBrowserNotice";
 import VaultUnavailableNotice from "./VaultUnavailableNotice";
-import VaultImportPrompt from "./VaultImportPrompt";
+import RecipientProfilePrompt from "./RecipientProfilePrompt";
 import RequiresReviewBanner from "./RequiresReviewBanner";
 import FinalizeDialog from "./FinalizeDialog";
 
@@ -55,7 +55,7 @@ export default function ConnectedBanner({ session }: { session: ConnectedSession
   }
 
   if (state.phase === "exchange_error" || state.phase === "awaiting_reconnect") {
-    return <ReconnectScreen errorKind={state.errorKind} onReconnect={session.reconnect} />;
+    return <ReconnectScreen errorKind={state.errorKind} errorDetail={session.loadErrorDetail} onReconnect={session.reconnect} />;
   }
 
   if (state.phase === "session_expired") {
@@ -66,17 +66,43 @@ export default function ConnectedBanner({ session }: { session: ConnectedSession
     return <VaultUnavailableNotice onCreateNewProfile={session.createNewLocalProfile} />;
   }
 
-  const canFinalize =
-    state.context.permissions.finalize && !state.context.requiresReview && state.phase === "loaded_editing";
+  // Opens the review dialog; everything that still blocks confirmation is
+  // listed there (and the confirm button stays disabled) instead of hiding it.
+  const canFinalize = state.context.permissions.finalize && state.phase === "loaded_editing";
+  const customer = workPackage?.customer;
+  const numberSource = workPackage?.invoiceNumberSource;
+  const invoiceNumber = session.editor.invoice.number;
+  const objectLabel = [workPackage?.projectName, workPackage?.projectLocation].filter(Boolean).join(" — ");
 
   return (
     <div style={bannerStyle}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          <strong>{workPackage?.projectName || t("connected_banner_title") || "Connected invoice"}</strong>
-          <span style={{ fontSize: 12, opacity: 0.8 }}>
-            {workPackage?.periodStart} – {workPackage?.periodEnd}
-          </span>
+        <div className="connected-banner__facts">
+          <div className="connected-banner__fact">
+            <span className="connected-banner__label">{t("connected_finalize_object")}</span>
+            <strong>{objectLabel || t("connected_banner_title")}</strong>
+            <span className="connected-muted">
+              {workPackage?.periodStart} – {workPackage?.periodEnd}
+            </span>
+          </div>
+          <div className="connected-banner__fact">
+            <span className="connected-banner__label">{t("connected_customer")}</span>
+            <strong>{customer?.displayName || t("connected_customer_unknown")}</strong>
+            {customer?.customerNumber && (
+              <span className="connected-muted">
+                {t("connected_customer_number")} {customer.customerNumber}
+              </span>
+            )}
+          </div>
+          <div className="connected-banner__fact">
+            <span className="connected-banner__label">{t("connected_number_label")}</span>
+            <strong data-testid="connected-banner-number">{invoiceNumber || t("connected_number_pending")}</strong>
+            {invoiceNumber && (
+              <span className={`connected-pill ${numberSource === "MANUAL" ? "connected-pill--warn" : "connected-pill--info"}`}>
+                {numberSource === "MANUAL" ? t("connected_number_source_manual") : t("connected_number_source_automatic")}
+              </span>
+            )}
+          </div>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12 }}>
@@ -85,7 +111,6 @@ export default function ConnectedBanner({ session }: { session: ConnectedSession
           ) : (
             <span style={pillStyle("#e0e7ff", "#3730a3")}>{t(SAVE_STATE_KEY[saveState]) || saveState}</span>
           )}
-          <span>{session.editor.invoice.number || t("connected_number_pending") || "No number yet"}</span>
           {accessExpiresAt && (
             <span title={t("connected_session_expires_hint") || "Editor session time remaining"}>
               ⏱ {formatCountdown(accessExpiresAt)}
@@ -101,12 +126,8 @@ export default function ConnectedBanner({ session }: { session: ConnectedSession
 
       <RequiresReviewBanner workPackage={workPackage} />
 
-      {session.vaultImportCandidate && !session.hasProfileForBillingRef && (
-        <VaultImportPrompt
-          candidate={session.vaultImportCandidate}
-          onImport={session.importVaultFromTemplate}
-          onDismiss={session.dismissVaultImportCandidate}
-        />
+      {!session.hasProfileForBillingRef && state.phase !== "locked_finalized" && state.phase !== "done" && (
+        <RecipientProfilePrompt session={session} />
       )}
 
       {(state.phase === "conflict" || state.phase === "offline") && (

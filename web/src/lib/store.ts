@@ -30,6 +30,10 @@ export function makeEmptyInvoice(partial?: Partial<InvoiceData>): InvoiceData {
     numberingMode: partial?.numberingMode ?? "auto",
     reverseCharge: partial?.reverseCharge ?? false,
     kleinunternehmer: partial?.kleinunternehmer ?? false,
+    object: partial?.object,
+    // Connected mode only (undefined in standalone).
+    dueDateISO: partial?.dueDateISO,
+    customerNumber: partial?.customerNumber,
     notes: partial?.notes ?? [],
     theme: partial?.theme ?? {
       colors: {

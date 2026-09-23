@@ -18,12 +18,14 @@ import type {
   FinalizeInvoiceRequest,
   FinalizeInvoiceResponse,
   InvoiceItemOverrideRequest,
+  OverrideInvoiceNumberRequest,
   ReserveInvoiceNumberRequest,
   ReserveInvoiceNumberResponse,
   SaveEncryptedInvoiceDocumentRequest,
   SaveEncryptedVaultRequest,
   WorkPackageDTO,
 } from "@/connected/types";
+import { decodeWorkPackage, WorkPackageContractError } from "@/connected/mapping/workPackageDecoder";
 
 const API_BASE: string = (process.env.NEXT_PUBLIC_ZEITERFASSUNG_API_BASE || "").trim().replace(/\/+$/, "");
 const EDITOR_TOKEN_HEADER = "X-Editor-Token";
@@ -36,17 +38,35 @@ export type EditorApiErrorKind =
   | "rate_limited"
   | "server_error"
   | "network_error"
-  | "not_configured";
+  | "not_configured"
+  | "invalid_contract";
 
 export class EditorApiError extends Error {
   readonly status?: number;
   readonly kind: EditorApiErrorKind;
+  /**
+   * The backend's own `{"error": "..."}` message, when it sent one. Those
+   * messages never carry tokens or PII (see the backend's HttpStatusException
+   * call sites), so the UI may show them — e.g. "Invoice number already in use".
+   */
+  readonly serverMessage?: string;
 
-  constructor(kind: EditorApiErrorKind, status?: number, message?: string) {
+  constructor(kind: EditorApiErrorKind, status?: number, message?: string, serverMessage?: string) {
     super(message || kind);
     this.name = "EditorApiError";
     this.kind = kind;
     this.status = status;
+    this.serverMessage = serverMessage;
+  }
+}
+
+function extractServerMessage(bodyText: string): string | undefined {
+  try {
+    const parsed = JSON.parse(bodyText);
+    const msg = parsed && typeof parsed === "object" ? (parsed as { error?: unknown }).error : undefined;
+    return typeof msg === "string" && msg.trim() ? msg.trim().slice(0, 300) : undefined;
+  } catch {
+    return undefined;
   }
 }
 
@@ -92,7 +112,12 @@ async function request<T>(
     } catch {
       // ignore
     }
-    throw new EditorApiError(kindForStatus(response.status), response.status, bodyText || response.statusText);
+    throw new EditorApiError(
+      kindForStatus(response.status),
+      response.status,
+      bodyText || response.statusText,
+      extractServerMessage(bodyText)
+    );
   }
 
   if (response.status === 204) return undefined as T;
@@ -106,8 +131,20 @@ export function exchangeToken(body: EditorExchangeRequest): Promise<EditorExchan
   });
 }
 
-export function getWorkPackage(editorToken: string): Promise<WorkPackageDTO> {
-  return request<WorkPackageDTO>("/invoicing/editor/work-package", { method: "GET", editorToken });
+/** Every work-package response goes through the contract decoder — never used raw. */
+function decodeOrThrow(raw: unknown): WorkPackageDTO {
+  try {
+    return decodeWorkPackage(raw);
+  } catch (e) {
+    if (e instanceof WorkPackageContractError) {
+      throw new EditorApiError("invalid_contract", undefined, e.message, e.problems.slice(0, 5).join("; "));
+    }
+    throw e;
+  }
+}
+
+export async function getWorkPackage(editorToken: string): Promise<WorkPackageDTO> {
+  return decodeOrThrow(await request<unknown>("/invoicing/editor/work-package", { method: "GET", editorToken }));
 }
 
 export async function getVault(editorToken: string): Promise<EncryptedVaultDTO | null> {
@@ -153,41 +190,87 @@ export function saveDocument(
   });
 }
 
-export function patchItem(
+export async function patchItem(
   editorToken: string,
   itemId: string,
   body: InvoiceItemOverrideRequest
 ): Promise<WorkPackageDTO> {
-  return request<WorkPackageDTO>(`/invoicing/editor/items/${encodeURIComponent(itemId)}`, {
-    method: "PATCH",
-    body: JSON.stringify(body),
-    editorToken,
-  });
+  return decodeOrThrow(
+    await request<unknown>(`/invoicing/editor/items/${encodeURIComponent(itemId)}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+      editorToken,
+    })
+  );
 }
 
-export function excludeItem(editorToken: string, itemId: string): Promise<WorkPackageDTO> {
-  return request<WorkPackageDTO>(`/invoicing/editor/items/${encodeURIComponent(itemId)}/exclude`, {
-    method: "POST",
-    editorToken,
-  });
+export async function excludeItem(editorToken: string, itemId: string): Promise<WorkPackageDTO> {
+  return decodeOrThrow(
+    await request<unknown>(`/invoicing/editor/items/${encodeURIComponent(itemId)}/exclude`, {
+      method: "POST",
+      editorToken,
+    })
+  );
 }
 
-export function includeItem(editorToken: string, itemId: string): Promise<WorkPackageDTO> {
-  return request<WorkPackageDTO>(`/invoicing/editor/items/${encodeURIComponent(itemId)}/include`, {
-    method: "POST",
-    editorToken,
-  });
+export async function includeItem(editorToken: string, itemId: string): Promise<WorkPackageDTO> {
+  return decodeOrThrow(
+    await request<unknown>(`/invoicing/editor/items/${encodeURIComponent(itemId)}/include`, {
+      method: "POST",
+      editorToken,
+    })
+  );
 }
 
-export function reserveNumber(
+/**
+ * A 2xx number response without an actual number/revision is never treated as
+ * a reservation — the PDF must only ever carry a number the backend stored.
+ */
+function requireNumberResult(raw: unknown): ReserveInvoiceNumberResponse {
+  const o = (raw && typeof raw === "object" ? raw : {}) as Partial<ReserveInvoiceNumberResponse>;
+  if (typeof o.invoiceNumber !== "string" || !o.invoiceNumber.trim() || !Number.isInteger(o.revision)) {
+    throw new EditorApiError("invalid_contract", undefined, "Number response without invoiceNumber/revision");
+  }
+  return {
+    invoiceNumber: o.invoiceNumber,
+    revision: o.revision as number,
+    status: typeof o.status === "string" ? o.status : "",
+    issueDate: typeof o.issueDate === "string" ? o.issueDate : null,
+    dueDate: typeof o.dueDate === "string" ? o.dueDate : null,
+    invoiceNumberSource: o.invoiceNumberSource === "SEQUENCE" || o.invoiceNumberSource === "MANUAL" ? o.invoiceNumberSource : null,
+    invoiceNumberPatternSnapshot: typeof o.invoiceNumberPatternSnapshot === "string" ? o.invoiceNumberPatternSnapshot : null,
+  };
+}
+
+export async function reserveNumber(
   editorToken: string,
   body: ReserveInvoiceNumberRequest
 ): Promise<ReserveInvoiceNumberResponse> {
-  return request<ReserveInvoiceNumberResponse>("/invoicing/editor/number:reserve", {
-    method: "POST",
-    body: JSON.stringify(body),
-    editorToken,
-  });
+  return requireNumberResult(
+    await request<unknown>("/invoicing/editor/number:reserve", {
+      method: "POST",
+      body: JSON.stringify(body),
+      editorToken,
+    })
+  );
+}
+
+/**
+ * Explicit manual invoice number (before finalization only). Revision-checked
+ * and unique per company on the backend; any conflict is a 409, never a
+ * silent success.
+ */
+export async function overrideNumber(
+  editorToken: string,
+  body: OverrideInvoiceNumberRequest
+): Promise<ReserveInvoiceNumberResponse> {
+  return requireNumberResult(
+    await request<unknown>("/invoicing/editor/number:override", {
+      method: "POST",
+      body: JSON.stringify(body),
+      editorToken,
+    })
+  );
 }
 
 export function finalizeInvoice(

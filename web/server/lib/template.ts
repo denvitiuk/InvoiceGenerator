@@ -8,6 +8,14 @@ import { de, enUS, ru, bg, tr, uk } from "date-fns/locale";
 
 import { preloadInvoiceDicts, registerTHelper, resolveLang, type Lang } from "./i18n";
 import { ExtraImage, InvoiceData, InvoiceTheme, LineItem, MonthlyCalculation } from "@/types/invoice";
+import {
+  centsToNumber,
+  computeLineTax,
+  formatRate,
+  hasConnectedTaxData,
+  summarizeTax,
+  type LineTax,
+} from "@/lib/invoiceTax";
 
 
 const hbs = Handlebars.create();
@@ -314,14 +322,60 @@ export interface BuildHtmlOptions {
   baseUrl?: string;
 }
 
+/**
+ * Connected-mode tax model: server lines render the backend's own amounts,
+ * manual lines are computed with the same rules (see src/lib/invoiceTax.ts);
+ * totals, the per-rate breakdown and exemption reasons are derived from those
+ * line amounts only. Returns null for standalone invoices, which keep the
+ * legacy calculation below unchanged.
+ */
+function connectedTaxModel(lineTaxes: LineTax[], currency: string, lang: Lang) {
+  const summary = summarizeTax(lineTaxes);
+  const money = (cents: number) => fmtMoney(centsToNumber(cents), currency, lang);
+  return {
+    net: money(summary.netCents),
+    groups: summary.groups.map((g) => ({
+      zeroRated: g.zeroRated,
+      rate: `${formatRate(g.vatRate)} %`,
+      categoryKey: g.taxCategory ? `tax_category_${g.taxCategory}` : "",
+      base: money(g.netCents),
+      amount: money(g.vatCents),
+    })),
+    vatTotal: money(summary.vatCents),
+    gross: money(summary.grossCents),
+    reasons: summary.exemptionReasons.map((r) => ({
+      categoryKey: r.taxCategory ? `tax_category_${r.taxCategory}` : "",
+      reason: escapeHtml(r.reason),
+    })),
+    _grossCents: summary.grossCents,
+  };
+}
+
 export function calcModel(data: InvoiceData, lang: Lang, baseUrl?: string) {
+  const connectedTax = hasConnectedTaxData(data.items);
+  const lineTaxes: LineTax[] = [];
   const rows = (data.items || []).map((it: LineItem) => {
     const dailyRows = dailyBreakdownRows(it, lang, data.currency);
     const detailed = dailyRows.length > 0;
     const quantity = detailed
       ? r2(dailyRows.reduce((sum, row) => sum + row._qty, 0))
       : it.qty || 0;
-    const net = r2(quantity * (it.unitPrice || 0));
+    let net = r2(quantity * (it.unitPrice || 0));
+    let vatRateLabel = it.vatRate ? `${it.vatRate}%` : "0%";
+    let taxLabelKey = "";
+    let vatAmountLabel = "";
+    if (connectedTax) {
+      const tax = computeLineTax(it, detailed ? quantity : undefined);
+      lineTaxes.push(tax);
+      net = centsToNumber(tax.netCents);
+      if (tax.taxCategory === "EXEMPT" || tax.taxCategory === "REVERSE_CHARGE" || tax.taxCategory === "SMALL_BUSINESS") {
+        vatRateLabel = "0 %";
+        taxLabelKey = `tax_category_${tax.taxCategory}`;
+      } else {
+        vatRateLabel = `${formatRate(tax.vatRate)} %`;
+        vatAmountLabel = fmtMoney(centsToNumber(tax.vatCents), data.currency, lang);
+      }
+    }
     return {
       group: String(it.group || "").trim(),
       descriptionHtml: lineItemDescriptionToHtml(it),
@@ -331,7 +385,9 @@ export function calcModel(data: InvoiceData, lang: Lang, baseUrl?: string) {
       qty: quantity,
       unit: it.unit ?? "",
       unitPrice: fmtMoney(it.unitPrice, data.currency, lang),
-      vatRate: it.vatRate ? `${it.vatRate}%` : "0%",
+      vatRate: vatRateLabel,
+      taxLabelKey,
+      vatAmount: vatAmountLabel,
       total: fmtMoney(net, data.currency, lang),
       _net: net,
       _r: it.vatRate || 0,
@@ -368,7 +424,12 @@ export function calcModel(data: InvoiceData, lang: Lang, baseUrl?: string) {
   const vatTotal = r2(vatBlocks.reduce((s: number, b: any) => s + b._amount, 0));
   const grand = data.kleinunternehmer ? subtotalNet : r2(subtotalNet + vatTotal);
 
+  const taxSummary = connectedTax ? connectedTaxModel(lineTaxes, data.currency, lang) : null;
+
   const issueDate = toDisplayDate(data.issueDateISO, lang);
+  const dueDateIso = typeof (data as any).dueDateISO === "string" ? String((data as any).dueDateISO) : "";
+  const dueDate = /^\d{4}-\d{2}-\d{2}$/.test(dueDateIso) ? toDisplayDate(dueDateIso, lang) : "";
+  const customerNumber = typeof (data as any).customerNumber === "string" ? escapeHtml((data as any).customerNumber.trim()) : "";
 
   const rawObject = String((data as any).object ?? "").trim();
   const object = rawObject === "-" || rawObject === "—" ? "" : rawObject;
@@ -401,6 +462,9 @@ export function calcModel(data: InvoiceData, lang: Lang, baseUrl?: string) {
     themeStyle: themeToCssVars((data as any).theme),
     number: data.number,
     object,
+    dueDate,
+    customerNumber,
+    taxSummary,
     company: { ...data.company, logoPath: fileUrl(data.company.logoPath, baseUrl), logoUrl: fileUrl((data.company as any).logoUrl, baseUrl) },
     client: data.client,
     issueDate,
@@ -415,7 +479,7 @@ export function calcModel(data: InvoiceData, lang: Lang, baseUrl?: string) {
     itemRows: groupedRows,
     subtotal: fmtMoney(subtotalNet, data.currency, lang),
     vatBlocks: data.kleinunternehmer ? [] : vatBlocks,
-    grandTotal: fmtMoney(grand, data.currency, lang),
+    grandTotal: taxSummary ? taxSummary.gross : fmtMoney(grand, data.currency, lang),
     notes,
     extraTables: data.extraTables ?? [],
     extraImages,

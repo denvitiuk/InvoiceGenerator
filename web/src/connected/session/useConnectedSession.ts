@@ -16,6 +16,7 @@ import {
   getVault,
   getWorkPackage,
   includeItem as apiIncludeItem,
+  overrideNumber as apiOverrideNumber,
   patchItem as apiPatchItem,
   reserveNumber as apiReserveNumber,
   saveDocument as apiSaveDocument,
@@ -34,10 +35,19 @@ import {
 import { getFinalizedDocument, saveFinalizedDocument } from "../crypto/finalizedDocumentStore";
 import { getExistingMasterKey, getOrCreateMasterKey, isIndexedDbAvailable } from "../crypto/keyStore";
 import { isWebCryptoAvailable } from "../crypto/webCrypto";
-import { sumDecimalStrings } from "../mapping/money";
-import { useConnectedInvoiceStore } from "../store/connectedInvoiceStore";
-import type { EditorPermissions, SessionMachineState } from "./sessionMachine";
+import { invoicePdfFileName } from "@/lib/safeFileName";
 import {
+  computeFinalAmounts,
+  finalizeBlockers,
+  IMMUTABLE_NUMBER_STATUSES,
+  isNumberEditable,
+  type FinalizeBlocker,
+} from "../finalize/finalizeChecks";
+import { activeItems } from "../mapping/workPackageDecoder";
+import { useConnectedInvoiceStore } from "../store/connectedInvoiceStore";
+import type { ApiErrorKind, EditorPermissions, SessionMachineState } from "./sessionMachine";
+import {
+  canStartReserve,
   exchangeFailed,
   exchangeSucceeded,
   finalizeFailed,
@@ -78,12 +88,31 @@ import { clearEditorToken, getEditorToken, isSessionExpired, peekStoredSession, 
 import { decryptVault, encryptVault } from "../vault/vaultCodec";
 import { makeEmptyVault, type InvoiceVault } from "../vault/vaultTypes";
 import { buildVaultImportCandidate, type VaultImportCandidate } from "../vault/vaultImport";
-import type { WorkPackageDTO } from "../types";
+import type { ReserveInvoiceNumberResponse, WorkPackageDTO } from "../types";
 
 const AUTOSAVE_DEBOUNCE_MS = 1200;
+
+/** Backend rule for manual numbers (InvoiceNumberingService.validateManualNumber). */
+const MANUAL_NUMBER_RE = /^[A-Za-z0-9][A-Za-z0-9._\/-]{0,63}$/;
 const PREVIEW_SETTLE_MS = 400; // strictly longer than PreviewPane's debounceMs=250
 
 export type SaveState = "idle" | "saving" | "saved" | "offline" | "conflict" | "error";
+
+/** Why the last reserve/render/upload/finalize step failed — shown without closing the dialog. */
+export interface FlowError {
+  kind: ApiErrorKind | "number_missing" | "blocked";
+  /** The backend's own error message (never tokens/PII), when it sent one. */
+  serverMessage?: string;
+  blockers?: FinalizeBlocker[];
+}
+
+export type OverrideNumberResult =
+  | { ok: true; invoiceNumber: string; revision: number }
+  | {
+      ok: false;
+      reason: "busy" | "no_permission" | "immutable" | "invalid_format" | "conflict" | "session_expired" | "failed";
+      serverMessage?: string;
+    };
 
 export interface ConnectedEditorAdapter {
   invoice: InvoiceData;
@@ -107,6 +136,12 @@ export interface ConnectedSessionValue {
   vaultImportCandidate: VaultImportCandidate | null;
   billingProfileRef: string | null;
   hasProfileForBillingRef: boolean;
+  /** Field-level detail for an invalid_contract load error (field names only). */
+  loadErrorDetail: string | null;
+  flowError: FlowError | null;
+  /** Everything that currently prevents confirming the invoice (empty = ready). */
+  finalizeBlockers: FinalizeBlocker[];
+  overrideInFlight: boolean;
 
   reconnect: (invoiceId: string, shortCode: string) => Promise<void>;
   openReconnect: () => void;
@@ -119,6 +154,9 @@ export interface ConnectedSessionValue {
   importVaultFromTemplate: () => void;
   dismissVaultImportCandidate: () => void;
   createNewLocalProfile: () => Promise<void>;
+  /** Starts a recipient profile for this billingProfileRef (prefilled with the backend's customer name). */
+  createRecipientProfile: () => Promise<void>;
+  overrideInvoiceNumber: (invoiceNumber: string) => Promise<OverrideNumberResult>;
   startFinalize: () => Promise<void>;
   retryAfterFailure: () => Promise<void>;
   downloadFinalPdf: () => void;
@@ -132,6 +170,10 @@ export function useConnectedSession(token: string | null): ConnectedSessionValue
   const [finalPdfBlob, setFinalPdfBlob] = useState<Blob | null>(null);
   const [vaultImportCandidate, setVaultImportCandidate] = useState<VaultImportCandidate | null>(null);
   const [hasProfileForBillingRef, setHasProfileForBillingRef] = useState(false);
+  const [loadErrorDetail, setLoadErrorDetail] = useState<string | null>(null);
+  const [flowError, setFlowError] = useState<FlowError | null>(null);
+  const [overrideInFlight, setOverrideInFlight] = useState(false);
+  const manualLines = useConnectedInvoiceStore((s) => s.manualLines);
 
   const invoice = useConnectedInvoiceStore((s) => s.invoice);
   const invoiceLang = useConnectedInvoiceStore((s) => s.invoiceLang);
@@ -142,6 +184,31 @@ export function useConnectedSession(token: string | null): ConnectedSessionValue
   const storePatchCompany = useConnectedInvoiceStore((s) => s.patchCompany);
   const storePatchClient = useConnectedInvoiceStore((s) => s.patchClient);
   const storePatchInvoice = useConnectedInvoiceStore((s) => s.patchInvoice);
+
+  // The machine's source of truth. Every transition goes through transition()
+  // below, which applies it to this ref synchronously and then mirrors it into
+  // React state — so two async callbacks firing in the same tick (e.g. the vault
+  // and document autosave timers) see each other's transitions, and an illegal
+  // transition throws in the caller instead of inside a React state updater
+  // (which would take the whole page down).
+  const stateRef = useRef(state);
+  const transition = useCallback((fn: (s: SessionMachineState) => SessionMachineState) => {
+    const next = fn(stateRef.current);
+    stateRef.current = next;
+    setState(next);
+  }, []);
+  // Vault and document saves share one lock on the backend-facing session
+  // phase, so they run strictly one after another.
+  const saveChainRef = useRef<Promise<void>>(Promise.resolve());
+  const enqueueSave = useCallback((run: () => Promise<void>): Promise<void> => {
+    const next = saveChainRef.current.then(run, run);
+    saveChainRef.current = next.catch(() => {});
+    return next;
+  }, []);
+  // Synchronous re-entrancy guards: a double click must never start a second
+  // finalize flow or a second number override.
+  const finalizeInFlightRef = useRef(false);
+  const overrideInFlightRef = useRef(false);
 
   const masterKeyRef = useRef<CryptoKey | null>(null);
   const documentKeyRef = useRef<CryptoKey | null>(null);
@@ -161,7 +228,7 @@ export function useConnectedSession(token: string | null): ConnectedSessionValue
   const vaultSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const documentSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const reportKind = useCallback((e: unknown): "unauthorized" | "forbidden" | "not_found" | "conflict" | "rate_limited" | "server_error" | "network_error" => {
+  const reportKind = useCallback((e: unknown): ApiErrorKind => {
     if (e instanceof EditorApiError) {
       if (e.kind === "not_configured") return "server_error";
       return e.kind;
@@ -177,14 +244,14 @@ export function useConnectedSession(token: string | null): ConnectedSessionValue
     async function run() {
       if (!isWebCryptoAvailable() || !isIndexedDbAvailable()) {
         if (!cancelled) {
-          setState((s) => markUnsupportedBrowser(s));
+          transition((s) => markUnsupportedBrowser(s));
           setLoading(false);
         }
         return;
       }
 
       if (token) {
-        setState((s) => startExchange(s));
+        transition((s) => startExchange(s));
         let permissions: EditorPermissions;
         try {
           const resp = await exchangeToken({ token });
@@ -198,13 +265,13 @@ export function useConnectedSession(token: string | null): ConnectedSessionValue
           permissions = resp.permissions;
         } catch (e) {
           if (!cancelled) {
-            setState((s) => exchangeFailed(s, reportKind(e)));
+            transition((s) => exchangeFailed(s, reportKind(e)));
             setLoading(false);
           }
           return;
         }
 
-        setState((s) => exchangeSucceeded(s, permissions));
+        transition((s) => exchangeSucceeded(s, permissions));
         if (!permissions.read) {
           setLoading(false);
           return;
@@ -226,7 +293,7 @@ export function useConnectedSession(token: string | null): ConnectedSessionValue
       }
       if (isSessionExpired(stored)) {
         clearEditorToken();
-        setState((s) => sessionExpiredOnRestore(s));
+        transition((s) => sessionExpiredOnRestore(s));
         setLoading(false);
         return;
       }
@@ -234,7 +301,7 @@ export function useConnectedSession(token: string | null): ConnectedSessionValue
       setAccessExpiresAt(stored.accessExpiresAt);
       // Permissions come from exactly what was issued at the original
       // exchange — never assumed/defaulted while restoring.
-      setState((s) => restoreSession(s, stored.permissions));
+      transition((s) => restoreSession(s, stored.permissions));
       if (!stored.permissions.read) {
         setLoading(false);
         return;
@@ -255,7 +322,8 @@ export function useConnectedSession(token: string | null): ConnectedSessionValue
         const kind = reportKind(e);
         cdbg("useConnectedSession.loadWorkPackage.failed", { kind });
         if (kind === "unauthorized" || kind === "forbidden") clearEditorToken();
-        setState((s) => loadFailed(s, kind));
+        if (kind === "invalid_contract" && e instanceof EditorApiError) setLoadErrorDetail(e.serverMessage ?? null);
+        transition((s) => loadFailed(s, kind));
         return;
       }
       if (cancelled) return;
@@ -264,11 +332,11 @@ export function useConnectedSession(token: string | null): ConnectedSessionValue
       invoiceRevisionRef.current = wp.revision;
       useConnectedInvoiceStore.getState().setWorkPackage(wp);
       billingProfileRefRef.current = wp.billingProfileRef;
-      const anyLineNeedsReview = wp.lines.some((l) => l.requiresReview && !l.isExcluded);
-      setState((s) => setRequiresReview(s, wp.requiresReview || anyLineNeedsReview));
+      const anyLineNeedsReview = wp.items.some((l) => l.requiresReview && !l.isExcluded);
+      transition((s) => setRequiresReview(s, wp.requiresReview || anyLineNeedsReview));
 
-      if (wp.status === "FINALIZED") {
-        setState((s) => lockAsFinalized(s));
+      if (IMMUTABLE_NUMBER_STATUSES.has(wp.status)) {
+        transition((s) => lockAsFinalized(s));
         return;
       }
 
@@ -284,7 +352,7 @@ export function useConnectedSession(token: string | null): ConnectedSessionValue
           const existingKey = await getExistingMasterKey(wp.billingProfileRef);
           const decrypted = existingKey ? await decryptVault(vaultDto, existingKey) : { ok: false as const, reason: "cannot-open" as const };
           if (!decrypted.ok) {
-            setState((s) => markVaultUnavailable(s));
+            transition((s) => markVaultUnavailable(s));
             return;
           }
           vaultRef.current = decrypted.vault;
@@ -299,18 +367,22 @@ export function useConnectedSession(token: string | null): ConnectedSessionValue
         cdbg("useConnectedSession.loadVault.failed", { kind });
         if (kind === "unauthorized" || kind === "forbidden") {
           clearEditorToken();
-          setState((s) => loadFailed(s, kind));
+          transition((s) => loadFailed(s, kind));
           return;
         }
         vaultRef.current = makeEmptyVault();
         masterKeyRef.current = masterKey;
       }
 
+      // Only ever the profile of THIS invoice's billingProfileRef — never
+      // another customer's. Without one, the recipient stays empty and the
+      // banner offers to create or import it (finalizing stays blocked).
       const profile = vaultRef.current.profiles[wp.billingProfileRef];
       setHasProfileForBillingRef(Boolean(profile));
       if (profile) {
         useConnectedInvoiceStore.getState().applyVaultProfile(profile, vaultRef.current.company, true);
-      } else if (!remoteVaultExists) {
+      } else {
+        if (remoteVaultExists) useConnectedInvoiceStore.getState().patchCompany(vaultRef.current.company);
         setVaultImportCandidate(buildVaultImportCandidate());
       }
 
@@ -331,7 +403,7 @@ export function useConnectedSession(token: string | null): ConnectedSessionValue
         cdbg("useConnectedSession.loadDocument.failed", { kind });
         if (kind === "unauthorized" || kind === "forbidden") {
           clearEditorToken();
-          setState((s) => loadFailed(s, kind));
+          transition((s) => loadFailed(s, kind));
           return;
         }
         documentKeyRef.current = documentKeyRef.current ?? (await generateDocumentKey());
@@ -377,11 +449,15 @@ export function useConnectedSession(token: string | null): ConnectedSessionValue
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invoice, useConnectedInvoiceStore.getState().manualLines, useConnectedInvoiceStore.getState().order]);
 
-  const saveVaultNow = useCallback(async () => {
+  const saveVaultNow = useCallback(() => enqueueSave(saveVaultInner), [enqueueSave]);
+  const saveDocumentNow = useCallback(() => enqueueSave(saveDocumentInner), [enqueueSave]);
+
+  async function saveVaultInner() {
     const editorToken = getEditorToken();
     const profileRef = billingProfileRefRef.current;
     const masterKey = masterKeyRef.current;
     if (!editorToken || !profileRef || !masterKey) return;
+    if (stateRef.current.phase !== "loaded_editing") return;
 
     const currentInvoice = useConnectedInvoiceStore.getState().invoice;
     const nextVault: InvoiceVault = {
@@ -398,7 +474,7 @@ export function useConnectedSession(token: string | null): ConnectedSessionValue
       },
     };
 
-    setState((s) => startSavingVault(s));
+    transition((s) => startSavingVault(s));
     setSaveState("saving");
     try {
       const body = await encryptVault(nextVault, masterKey, {
@@ -409,34 +485,34 @@ export function useConnectedSession(token: string | null): ConnectedSessionValue
       vaultRef.current = nextVault;
       vaultRevisionRef.current = dto.revision;
       setHasProfileForBillingRef(true);
-      setState((s) => saveSucceeded(s));
+      transition((s) => saveSucceeded(s));
       setSaveState("saved");
     } catch (e) {
       const kind = reportKind(e);
       if (kind === "conflict") {
-        setState((s) => saveConflict(s, "vault"));
+        transition((s) => saveConflict(s, "vault"));
         setSaveState("conflict");
       } else if (kind === "network_error") {
-        setState((s) => saveWentOffline(s));
+        transition((s) => saveWentOffline(s));
         setSaveState("offline");
       } else if (kind === "unauthorized" || kind === "forbidden") {
-        setState((s) => saveSessionExpired(s));
+        transition((s) => saveSessionExpired(s));
         clearEditorToken();
       } else {
-        setState((s) => saveGenericError(s));
+        transition((s) => saveGenericError(s));
         setSaveState("error");
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reportKind]);
+  }
 
-  const saveDocumentNow = useCallback(async () => {
+  async function saveDocumentInner() {
     const editorToken = getEditorToken();
     const documentKey = documentKeyRef.current;
     const masterKey = masterKeyRef.current;
     if (!editorToken || !documentKey || !masterKey) return;
+    if (stateRef.current.phase !== "loaded_editing") return;
 
-    setState((s) => startSavingDocument(s));
+    transition((s) => startSavingDocument(s));
     setSaveState("saving");
     try {
       const snapshot = useConnectedInvoiceStore.getState().exportDocumentSnapshot();
@@ -454,26 +530,25 @@ export function useConnectedSession(token: string | null): ConnectedSessionValue
         documentSha256Base64: encrypted.documentSha256Base64,
       });
       documentRevisionRef.current = dto.revision;
-      setState((s) => saveSucceeded(s));
+      transition((s) => saveSucceeded(s));
       setSaveState("saved");
     } catch (e) {
       const kind = reportKind(e);
       if (kind === "conflict") {
-        setState((s) => saveConflict(s, "document"));
+        transition((s) => saveConflict(s, "document"));
         setSaveState("conflict");
       } else if (kind === "network_error") {
-        setState((s) => saveWentOffline(s));
+        transition((s) => saveWentOffline(s));
         setSaveState("offline");
       } else if (kind === "unauthorized" || kind === "forbidden") {
-        setState((s) => saveSessionExpired(s));
+        transition((s) => saveSessionExpired(s));
         clearEditorToken();
       } else {
-        setState((s) => saveGenericError(s));
+        transition((s) => saveGenericError(s));
         setSaveState("error");
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reportKind]);
+  }
 
   /** Applies a freshly-fetched WorkPackageDTO everywhere its revision matters — the
    * store (for display) and invoiceRevisionRef (the source of truth for reserve/
@@ -488,8 +563,8 @@ export function useConnectedSession(token: string | null): ConnectedSessionValue
     if (!editorToken) return;
     const wp = await getWorkPackage(editorToken);
     applyWorkPackage(wp);
-    const anyLineNeedsReview = wp.lines.some((l) => l.requiresReview && !l.isExcluded);
-    setState((s) => setRequiresReview(s, wp.requiresReview || anyLineNeedsReview));
+    const anyLineNeedsReview = wp.items.some((l) => l.requiresReview && !l.isExcluded);
+    transition((s) => setRequiresReview(s, wp.requiresReview || anyLineNeedsReview));
     return wp;
   }, [applyWorkPackage]);
 
@@ -505,8 +580,8 @@ export function useConnectedSession(token: string | null): ConnectedSessionValue
         unitPrice: patch.unitPrice !== undefined ? String(patch.unitPrice) : undefined,
       });
       applyWorkPackage(wp);
-      const anyLineNeedsReview = wp.lines.some((l) => l.requiresReview && !l.isExcluded);
-      setState((s) => setRequiresReview(s, wp.requiresReview || anyLineNeedsReview));
+      const anyLineNeedsReview = wp.items.some((l) => l.requiresReview && !l.isExcluded);
+      transition((s) => setRequiresReview(s, wp.requiresReview || anyLineNeedsReview));
     } catch (e) {
       cdbg("useConnectedSession.patchServerItem.failed", { kind: reportKind(e) });
     }
@@ -553,32 +628,70 @@ export function useConnectedSession(token: string | null): ConnectedSessionValue
     const key = await getOrCreateMasterKey(profileRef);
     masterKeyRef.current = key;
     vaultRef.current = makeEmptyVault();
-    setState((s) => ({ ...s, phase: "loaded_editing" }));
+    transition((s) => ({ ...s, phase: "loaded_editing" }));
     setHasProfileForBillingRef(false);
     skipNextAutosaveRef.current = true;
   }, []);
 
-  const startFinalize = useCallback(async () => {
-    const editorToken = getEditorToken();
-    if (!editorToken || !workPackage) return;
+  const createRecipientProfile = useCallback(async () => {
+    const store = useConnectedInvoiceStore.getState();
+    const displayName = store.workPackage?.customer?.displayName?.trim();
+    if (!(store.invoice.client.name || "").trim() && displayName) {
+      store.patchClient({ name: displayName });
+    }
+    setVaultImportCandidate(null);
+    await saveVaultNow();
+  }, [saveVaultNow]);
 
-    setState((s) => startReserve(s));
-    await reserveNumberAndContinue(false);
-  }, [invoice, workPackage]);
+  const currentBlockers = useCallback((): FinalizeBlocker[] => {
+    const store = useConnectedInvoiceStore.getState();
+    return finalizeBlockers({
+      workPackage: store.workPackage,
+      invoice: store.invoice,
+      manualLines: store.manualLines,
+      canFinalize: stateRef.current.context.permissions.finalize,
+      requiresReview: stateRef.current.context.requiresReview,
+      hasProfileForBillingRef,
+    });
+  }, [hasProfileForBillingRef]);
+
+  const startFinalize = useCallback(async () => {
+    if (finalizeInFlightRef.current) return;
+    const editorToken = getEditorToken();
+    if (!editorToken || !useConnectedInvoiceStore.getState().workPackage) return;
+
+    const blockers = currentBlockers();
+    if (blockers.length) {
+      setFlowError({ kind: "blocked", blockers });
+      return;
+    }
+    if (!canStartReserve(stateRef.current)) return;
+
+    finalizeInFlightRef.current = true;
+    try {
+      setFlowError(null);
+      transition((s) => startReserve(s));
+      await reserveNumberAndContinue(false);
+    } finally {
+      finalizeInFlightRef.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentBlockers]);
 
   async function settlePreviewAndRender() {
     await new Promise((resolve) => setTimeout(resolve, PREVIEW_SETTLE_MS));
-    setState((s) => previewSettled(s));
+    transition((s) => previewSettled(s));
     await runRenderThroughFinalize();
   }
 
   /**
    * Reserves the invoice number and continues into render/upload/finalize.
-   * When `checkExisting` is true (only on a retry after `reserve_failed`),
-   * re-fetches the work package first and never calls reserveNumber if the
-   * invoice already shows a reserved number or is already FINALIZED — the
-   * previous attempt's response may simply have been lost in transit, not
-   * actually failed server-side.
+   * The number always comes from the backend: either it is already stored on
+   * the invoice (an earlier reservation or a manual override), or
+   * number:reserve returns it. When `checkExisting` is true (a retry after
+   * `reserve_failed`), the work package is re-read first and a failed re-read
+   * stops the retry — the previous attempt's response may have been lost
+   * after the server already committed it, so we never reserve blindly.
    */
   async function reserveNumberAndContinue(checkExisting: boolean) {
     const editorToken = getEditorToken();
@@ -590,34 +703,52 @@ export function useConnectedSession(token: string | null): ConnectedSessionValue
       try {
         latestWp = await refetchWorkPackage();
       } catch (e) {
-        cdbg("useConnectedSession.retryReserve.refetch.failed", { kind: reportKind(e) });
-      }
-
-      if (latestWp?.status === "FINALIZED") {
-        setState((s) => lockAsFinalized(s));
-        return;
-      }
-      if (latestWp?.status === "NUMBER_RESERVED" && latestWp.invoiceNumber) {
-        // A previous attempt already reserved this number — never reserve a
-        // second one. Adopt the invoice's actual revision and number and
-        // continue straight into the render/upload/finalize chain.
-        invoiceRevisionRef.current = latestWp.revision;
-        storePatchInvoice({ number: latestWp.invoiceNumber });
-        setState((s) => reserveAlreadyDone(s));
-        await settlePreviewAndRender();
+        const kind = reportKind(e);
+        cdbg("useConnectedSession.retryReserve.refetch.failed", { kind });
+        setFlowError({ kind, serverMessage: e instanceof EditorApiError ? e.serverMessage : undefined });
+        transition((s) => reserveFailed(s));
         return;
       }
     }
+    if (!latestWp) {
+      transition((s) => reserveFailed(s));
+      return;
+    }
 
-    let reserveResp;
+    if (IMMUTABLE_NUMBER_STATUSES.has(latestWp.status)) {
+      transition((s) => lockAsFinalized(s));
+      return;
+    }
+    if (latestWp.status === "NUMBER_RESERVED" && latestWp.invoiceNumber) {
+      // Already reserved (earlier attempt or manual override) — never reserve a
+      // second number. Re-apply the backend's number/dates to the invoice and
+      // continue straight into the render/upload/finalize chain.
+      invoiceRevisionRef.current = latestWp.revision;
+      useConnectedInvoiceStore.getState().setWorkPackage(latestWp);
+      transition((s) => reserveAlreadyDone(s));
+      await settlePreviewAndRender();
+      return;
+    }
+
+    let reserveResp: ReserveInvoiceNumberResponse;
     try {
       reserveResp = await apiReserveNumber(editorToken, {
-        expectedRevision: latestWp?.revision ?? invoiceRevisionRef.current,
-        issueDate: invoice.issueDateISO,
-        dueDate: computeDueDate(invoice),
+        expectedRevision: latestWp.revision,
+        ...requestDates(useConnectedInvoiceStore.getState().invoice),
       });
     } catch (e) {
-      setState((s) => reserveFailed(s));
+      const kind = reportKind(e);
+      cdbg("useConnectedSession.reserve.failed", { kind });
+      setFlowError({ kind, serverMessage: e instanceof EditorApiError ? e.serverMessage : undefined });
+      transition((s) => reserveFailed(s));
+      if (kind === "conflict") {
+        // Show the invoice as it is now; the retry re-checks before reserving.
+        try {
+          await refetchWorkPackage();
+        } catch {
+          // the retry path re-reads again anyway
+        }
+      }
       return;
     }
 
@@ -626,28 +757,41 @@ export function useConnectedSession(token: string | null): ConnectedSessionValue
     // through to finalize as-is; a later document-save's revision is a
     // different counter entirely and must never be substituted here.
     invoiceRevisionRef.current = reserveResp.revision;
-    storePatchInvoice({ number: reserveResp.invoiceNumber });
-    setState((s) => reserveSucceeded(s));
+    useConnectedInvoiceStore.getState().applyNumberResult(reserveResp);
+    transition((s) => reserveSucceeded(s));
 
     await settlePreviewAndRender();
   }
 
   async function runRenderThroughFinalize() {
-    let pdfBlob: Blob;
-    try {
-      const rendered = await renderInvoiceBlob(useConnectedInvoiceStore.getState().invoice, invoiceLang as any);
-      pdfBlob = rendered.blob;
-    } catch {
-      setState((s) => renderFailed(s));
+    // Hard guard: the final PDF is only ever rendered with the number the
+    // backend actually stored — never an empty, stale or local one.
+    const beforeRender = useConnectedInvoiceStore.getState();
+    const reservedNumber = beforeRender.workPackage?.invoiceNumber;
+    if (!reservedNumber || beforeRender.invoice.number !== reservedNumber) {
+      cdbg("useConnectedSession.render.blocked_without_reserved_number", {});
+      setFlowError({ kind: "number_missing" });
+      transition((s) => renderFailed(s));
       return;
     }
-    setState((s) => renderSucceeded(s));
+
+    let pdfBlob: Blob;
+    try {
+      const rendered = await renderInvoiceBlob(beforeRender.invoice, invoiceLang as any);
+      pdfBlob = rendered.blob;
+    } catch {
+      setFlowError({ kind: "server_error" });
+      transition((s) => renderFailed(s));
+      return;
+    }
+    transition((s) => renderSucceeded(s));
 
     const editorToken = getEditorToken();
     const documentKey = documentKeyRef.current;
     const masterKey = masterKeyRef.current;
     if (!editorToken || !documentKey || !masterKey) {
-      setState((s) => uploadFailed(s));
+      setFlowError({ kind: "unauthorized" });
+      transition((s) => uploadFailed(s));
       return;
     }
 
@@ -677,36 +821,40 @@ export function useConnectedSession(token: string | null): ConnectedSessionValue
       // call's expectedRevision, never in /finalize's (see invoiceRevisionRef).
       documentRevisionRef.current = dto.revision;
       setFinalPdfBlob(pdfBlob);
-    } catch {
-      setState((s) => uploadFailed(s));
+    } catch (e) {
+      setFlowError({ kind: reportKind(e), serverMessage: e instanceof EditorApiError ? e.serverMessage : undefined });
+      transition((s) => uploadFailed(s));
       return;
     }
-    setState((s) => uploadSucceeded(s));
+    transition((s) => uploadSucceeded(s));
 
     const wp = useConnectedInvoiceStore.getState().workPackage;
-    const activeAmounts = (wp?.lines ?? []).filter((l) => !l.isExcluded);
-    const currentInvoice = useConnectedInvoiceStore.getState().invoice;
-    const manualLines = useConnectedInvoiceStore.getState().manualLines;
-    const finalNet = sumDecimalStrings([
-      ...activeAmounts.map((l) => l.netAmount),
-      ...manualLines.map((m) => String(m.item.qty * m.item.unitPrice)),
-    ]);
-    const manualVat = manualLines.reduce((sum, m) => sum + m.item.qty * m.item.unitPrice * (m.item.vatRate / 100), 0);
-    const finalVat = sumDecimalStrings([...activeAmounts.map((l) => l.vatAmount), manualVat.toFixed(2)]);
-    const finalGross = sumDecimalStrings([finalNet, finalVat]);
-
-    try {
-      await apiFinalizeInvoice(editorToken, {
-        expectedRevision: invoiceRevisionRef.current,
-        finalNetAmount: finalNet,
-        finalVatAmount: finalVat,
-        finalGrossAmount: finalGross,
-      });
-    } catch {
-      setState((s) => finalizeFailed(s));
+    if (!wp) {
+      transition((s) => finalizeFailed(s));
       return;
     }
-    setState((s) => finalizeSucceeded(s));
+    // Backend totals for every server line + locally computed manual rows —
+    // exactly the amounts the PDF shows (same invoiceTax rules).
+    const amounts = computeFinalAmounts(wp, useConnectedInvoiceStore.getState().manualLines);
+
+    let finalizeResp;
+    try {
+      finalizeResp = await apiFinalizeInvoice(editorToken, {
+        expectedRevision: invoiceRevisionRef.current,
+        ...amounts,
+      });
+    } catch (e) {
+      setFlowError({ kind: reportKind(e), serverMessage: e instanceof EditorApiError ? e.serverMessage : undefined });
+      transition((s) => finalizeFailed(s));
+      return;
+    }
+    invoiceRevisionRef.current = finalizeResp.revision;
+    const latest = useConnectedInvoiceStore.getState().workPackage;
+    if (latest) {
+      useConnectedInvoiceStore.getState().setWorkPackage({ ...latest, status: "FINALIZED", revision: finalizeResp.revision });
+    }
+    setFlowError(null);
+    transition((s) => finalizeSucceeded(s));
 
     if (invoiceIdRef.current) {
       try {
@@ -736,49 +884,117 @@ export function useConnectedSession(token: string | null): ConnectedSessionValue
   }
 
   const retryAfterFailure = useCallback(async () => {
-    if (state.phase === "reserve_failed") {
+    if (finalizeInFlightRef.current) return;
+    finalizeInFlightRef.current = true;
+    try {
+      await retryAfterFailureInner();
+    } finally {
+      finalizeInFlightRef.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.phase]);
+
+  async function retryAfterFailureInner() {
+    const phase = stateRef.current.phase;
+    if (phase === "reserve_failed") {
       // Never blindly re-call reserveNumber: the previous attempt's response
       // may have been lost after the server already committed it. Always
       // re-check the invoice's actual status first (see reserveNumberAndContinue).
-      setState((s) => retryReserve(s));
+      setFlowError(null);
+      transition((s) => retryReserve(s));
       await reserveNumberAndContinue(true);
       return;
     }
-    if (state.phase === "render_failed") {
-      setState((s) => retryRender(s));
+    if (phase === "render_failed") {
+      setFlowError(null);
+      transition((s) => retryRender(s));
       await runRenderThroughFinalize();
       return;
     }
-    if (state.phase === "upload_failed") {
-      setState((s) => retryUpload(s));
+    if (phase === "upload_failed") {
+      setFlowError(null);
+      transition((s) => retryUpload(s));
       await runRenderThroughFinalize();
       return;
     }
-    if (state.phase === "finalize_failed") {
-      setState((s) => retryFinalize(s));
+    if (phase === "finalize_failed") {
+      setFlowError(null);
+      transition((s) => retryFinalize(s));
       // Re-check status before calling finalize again — if a previous call actually
       // succeeded server-side but the response was lost, treat it as done instead
       // of finalizing twice.
-      const wp = await refetchWorkPackage();
+      let wp: WorkPackageDTO | undefined;
+      try {
+        wp = await refetchWorkPackage();
+      } catch (e) {
+        setFlowError({ kind: reportKind(e), serverMessage: e instanceof EditorApiError ? e.serverMessage : undefined });
+        transition((s) => finalizeFailed(s));
+        return;
+      }
       if (wp?.status === "FINALIZED") {
-        setState((s) => finalizeSucceeded(s));
+        transition((s) => finalizeSucceeded(s));
         return;
       }
       await runRenderThroughFinalize();
       return;
     }
-    if (state.phase === "conflict" || state.phase === "offline") {
-      setState((s) => resumeEditing(s));
+    if (phase === "conflict" || phase === "offline") {
+      transition((s) => resumeEditing(s));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.phase]);
+  }
+
+  const overrideInvoiceNumber = useCallback(async (rawNumber: string): Promise<OverrideNumberResult> => {
+    if (overrideInFlightRef.current || finalizeInFlightRef.current) return { ok: false, reason: "busy" };
+    const editorToken = getEditorToken();
+    const wp = useConnectedInvoiceStore.getState().workPackage;
+    if (!editorToken || !wp) return { ok: false, reason: "session_expired" };
+    if (!stateRef.current.context.permissions.finalize) return { ok: false, reason: "no_permission" };
+    if (!isNumberEditable(wp.status)) return { ok: false, reason: "immutable" };
+    if (stateRef.current.phase !== "loaded_editing") return { ok: false, reason: "busy" };
+
+    const invoiceNumber = rawNumber.trim();
+    if (!MANUAL_NUMBER_RE.test(invoiceNumber)) return { ok: false, reason: "invalid_format" };
+
+    overrideInFlightRef.current = true;
+    setOverrideInFlight(true);
+    try {
+      const resp = await apiOverrideNumber(editorToken, {
+        expectedRevision: wp.revision,
+        invoiceNumber,
+        ...requestDates(useConnectedInvoiceStore.getState().invoice),
+      });
+      invoiceRevisionRef.current = resp.revision;
+      useConnectedInvoiceStore.getState().applyNumberResult(resp);
+      return { ok: true, invoiceNumber: resp.invoiceNumber, revision: resp.revision };
+    } catch (e) {
+      const kind = reportKind(e);
+      const serverMessage = e instanceof EditorApiError ? e.serverMessage : undefined;
+      cdbg("useConnectedSession.overrideNumber.failed", { kind });
+      if (kind === "conflict") {
+        // Duplicate number or stale revision: show the invoice as it is now.
+        try {
+          await refetchWorkPackage();
+        } catch {
+          // keep the conflict result; the next attempt re-reads again
+        }
+        return { ok: false, reason: "conflict", serverMessage };
+      }
+      if (kind === "unauthorized") return { ok: false, reason: "session_expired", serverMessage };
+      if (kind === "forbidden") return { ok: false, reason: "no_permission", serverMessage };
+      return { ok: false, reason: "failed", serverMessage };
+    } finally {
+      overrideInFlightRef.current = false;
+      setOverrideInFlight(false);
+    }
+  }, [reportKind, refetchWorkPackage]);
 
   const downloadFinalPdf = useCallback(() => {
     if (!finalPdfBlob) return;
     const url = URL.createObjectURL(finalPdfBlob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${invoice.number || "invoice"}.pdf`;
+    // Safe file name only — the number inside the PDF is untouched.
+    a.download = invoicePdfFileName(invoice.number);
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -786,7 +1002,7 @@ export function useConnectedSession(token: string | null): ConnectedSessionValue
   }, [finalPdfBlob, invoice.number]);
 
   const reconnect = useCallback(async (invoiceId: string, shortCode: string) => {
-    setState((s) => startExchange(s));
+    transition((s) => startExchange(s));
     try {
       const resp = await exchangeToken({ invoiceId, shortCode });
       setEditorSession({
@@ -796,7 +1012,7 @@ export function useConnectedSession(token: string | null): ConnectedSessionValue
       });
       setAccessExpiresAt(resp.accessExpiresAt);
       invoiceIdRef.current = resp.invoiceId;
-      setState((s) => exchangeSucceeded(s, resp.permissions));
+      transition((s) => exchangeSucceeded(s, resp.permissions));
       setLoading(true);
       const editorToken = getEditorToken();
       if (editorToken) {
@@ -807,11 +1023,11 @@ export function useConnectedSession(token: string | null): ConnectedSessionValue
       }
       setLoading(false);
     } catch (e) {
-      setState((s) => exchangeFailed(s, reportKind(e)));
+      transition((s) => exchangeFailed(s, reportKind(e)));
     }
   }, [reportKind]);
 
-  const openReconnect = useCallback(() => setState((s) => openReconnectScreen(s)), []);
+  const openReconnect = useCallback(() => transition((s) => openReconnectScreen(s)), []);
 
   return {
     state,
@@ -823,6 +1039,17 @@ export function useConnectedSession(token: string | null): ConnectedSessionValue
     vaultImportCandidate,
     billingProfileRef: billingProfileRefRef.current,
     hasProfileForBillingRef,
+    loadErrorDetail,
+    flowError,
+    finalizeBlockers: finalizeBlockers({
+      workPackage,
+      invoice,
+      manualLines,
+      canFinalize: state.context.permissions.finalize,
+      requiresReview: state.context.requiresReview,
+      hasProfileForBillingRef,
+    }),
+    overrideInFlight,
     editor: {
       invoice,
       invoiceLang,
@@ -844,18 +1071,33 @@ export function useConnectedSession(token: string | null): ConnectedSessionValue
     importVaultFromTemplate,
     dismissVaultImportCandidate,
     createNewLocalProfile,
+    createRecipientProfile,
+    overrideInvoiceNumber,
     startFinalize,
     retryAfterFailure,
     downloadFinalPdf,
   };
 }
 
-function computeDueDate(invoice: InvoiceData): string {
-  if (!invoice.issueDateISO || invoice.dueDays === undefined) return invoice.issueDateISO || "";
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function computeDueDate(invoice: InvoiceData): string | undefined {
+  if (!ISO_DATE_RE.test(invoice.issueDateISO || "") || invoice.dueDays === undefined) return undefined;
   const issue = new Date(`${invoice.issueDateISO}T00:00:00Z`);
-  if (Number.isNaN(issue.getTime())) return invoice.issueDateISO;
+  if (Number.isNaN(issue.getTime())) return undefined;
   issue.setUTCDate(issue.getUTCDate() + invoice.dueDays);
   return issue.toISOString().slice(0, 10);
+}
+
+/**
+ * issueDate/dueDate for number:reserve / number:override — only sent when they
+ * are valid ISO dates; otherwise omitted so the backend applies its own
+ * defaults (today in the invoice timezone, + payment terms).
+ */
+function requestDates(invoice: InvoiceData): { issueDate?: string; dueDate?: string } {
+  const issueDate = ISO_DATE_RE.test(invoice.issueDateISO || "") ? invoice.issueDateISO : undefined;
+  const dueDate = issueDate ? computeDueDate(invoice) : undefined;
+  return { ...(issueDate ? { issueDate } : {}), ...(dueDate ? { dueDate } : {}) };
 }
 
 export { getFinalizedDocument, decryptPdf };

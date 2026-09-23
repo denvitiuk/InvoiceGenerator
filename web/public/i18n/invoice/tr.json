@@ -60,5 +60,17 @@
   "page": "Sayfa",
   "rc_note": "KDV tersine yüklenir (Reverse-Charge).",
   "ku_note": "§19 UStG uyarınca KDV hesaplanmaz.",
-  "object": "Proje / Şantiye"
+  "object": "Proje / Şantiye",
+  "customer_number": "Müşteri numarası",
+  "due_date": "Vade tarihi",
+  "net_amount": "Net tutar",
+  "vat_on": "üzerinden",
+  "vat_total": "Toplam KDV",
+  "gross_total": "Toplam tutar",
+  "tax_notes": "Vergi notları",
+  "tax_category_STANDARD": "Standart oran",
+  "tax_category_REDUCED": "İndirimli oran",
+  "tax_category_EXEMPT": "KDV'den muaf",
+  "tax_category_REVERSE_CHARGE": "Reverse Charge",
+  "tax_category_SMALL_BUSINESS": "Küçük işletme (§ 19 UStG)"
 }

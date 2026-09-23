@@ -5,10 +5,12 @@
 //   currency            -> InvoiceData.currency
 //   periodStart/End      -> InvoiceData.servicePeriod
 //   projectName+Location -> InvoiceData.object
-//   invoiceNumber        -> InvoiceData.number
+//   invoiceNumber        -> InvoiceData.number ("" while not reserved — never a local guess)
 //   issueDate             -> InvoiceData.issueDateISO
+//   dueDate               -> InvoiceData.dueDateISO
 //   issueDate/dueDate diff -> InvoiceData.dueDays
-//   active lines           -> InvoiceData.items
+//   customer.customerNumber -> InvoiceData.customerNumber
+//   active items           -> InvoiceData.items (with backend tax + amounts)
 
 import type { InvoiceData, LineItem } from "@/types/invoice";
 import type { UILang } from "@/lib/i18n";
@@ -76,6 +78,10 @@ export function enrichLineDescription(line: WorkPackageLineDTO, lang: Lang): str
   return parts.join(" · ");
 }
 
+/**
+ * Server lines keep the backend's amounts and tax classification verbatim
+ * (as decimal strings), so the preview/PDF never re-derives VAT for them.
+ */
 export function lineDtoToDisplayItem(line: WorkPackageLineDTO, lang: Lang): LineItem {
   return {
     group: line.workType || undefined,
@@ -84,12 +90,18 @@ export function lineDtoToDisplayItem(line: WorkPackageLineDTO, lang: Lang): Line
     unit: line.unit || undefined,
     unitPrice: decimalStringToNumber(line.unitPrice),
     vatRate: decimalStringToNumber(line.vatRate),
+    taxCategory: line.taxCategory,
+    taxExemptionReason: line.taxExemptionReason ?? undefined,
+    netAmount: line.netAmount,
+    vatAmount: line.vatAmount,
+    grossAmount: line.grossAmount,
+    workerCount: line.workerCount,
     serverItemId: line.invoiceWorkItemId,
     serverExcluded: line.isExcluded,
   };
 }
 
-function computeDueDays(issueDate?: string, dueDate?: string): number | undefined {
+function computeDueDays(issueDate?: string | null, dueDate?: string | null): number | undefined {
   if (!issueDate || !dueDate) return undefined;
   const issue = new Date(`${issueDate}T00:00:00Z`).getTime();
   const due = new Date(`${dueDate}T00:00:00Z`).getTime();
@@ -107,7 +119,29 @@ export function mapWorkPackageToInvoiceData(wp: WorkPackageDTO): Partial<Invoice
     number: wp.invoiceNumber || "",
     issueDateISO: wp.issueDate || "",
     dueDays: computeDueDays(wp.issueDate, wp.dueDate),
+    dueDateISO: wp.dueDate || undefined,
+    customerNumber: wp.customer?.customerNumber || undefined,
   };
+}
+
+/**
+ * VAT defaults for a newly added manual row, taken from the backend — never a
+ * hard-coded 19 %. A zero rate copies the category/reason of an existing
+ * zero-rated server line; without one the row stays unclassified and must be
+ * completed before finalizing (see finalize/finalizeChecks.ts).
+ */
+export function defaultManualLineTax(wp: WorkPackageDTO | null): Pick<LineItem, "vatRate" | "taxCategory" | "taxExemptionReason"> {
+  if (!wp) return { vatRate: 0 };
+  const rate = decimalStringToNumber(wp.vatRate);
+  const active = wp.items.filter((l) => !l.isExcluded);
+  if (rate > 0) {
+    const sameRate = active.find((l) => decimalStringToNumber(l.vatRate) === rate && (l.taxCategory === "STANDARD" || l.taxCategory === "REDUCED"));
+    return { vatRate: rate, taxCategory: sameRate?.taxCategory ?? "STANDARD" };
+  }
+  const zeroRated = active.find((l) => l.taxCategory === "EXEMPT" || l.taxCategory === "REVERSE_CHARGE" || l.taxCategory === "SMALL_BUSINESS");
+  return zeroRated
+    ? { vatRate: 0, taxCategory: zeroRated.taxCategory, taxExemptionReason: zeroRated.taxExemptionReason ?? undefined }
+    : { vatRate: 0 };
 }
 
 export function keyForServerLine(invoiceWorkItemId: string): string {

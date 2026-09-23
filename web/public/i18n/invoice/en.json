@@ -54,5 +54,17 @@
   "page": "Page",
   "rc_note": "VAT reverse charge applies.",
   "ku_note": "In accordance with §19 UStG, no VAT is charged.",
-  "object": "Object"
+  "object": "Object",
+  "customer_number": "Customer number",
+  "due_date": "Due date",
+  "net_amount": "Net amount",
+  "vat_on": "on",
+  "vat_total": "Total VAT",
+  "gross_total": "Total amount",
+  "tax_notes": "Tax notes",
+  "tax_category_STANDARD": "Standard rate",
+  "tax_category_REDUCED": "Reduced rate",
+  "tax_category_EXEMPT": "VAT exempt",
+  "tax_category_REVERSE_CHARGE": "Reverse charge",
+  "tax_category_SMALL_BUSINESS": "Small business (§ 19 UStG)"
 }

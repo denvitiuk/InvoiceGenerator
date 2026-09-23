@@ -55,5 +55,17 @@
   "page": "Seite",
   "rc_note": "Steuerschuldnerschaft des Leistungsempfängers (Reverse-Charge).",
   "ku_note": "Gemäß §19 UStG wird keine Umsatzsteuer berechnet.",
-  "object": "Objekt"
+  "object": "Objekt",
+  "customer_number": "Kundennummer",
+  "due_date": "Fällig am",
+  "net_amount": "Nettobetrag",
+  "vat_on": "auf",
+  "vat_total": "Gesamt MwSt.",
+  "gross_total": "Gesamtbetrag",
+  "tax_notes": "Steuerhinweise",
+  "tax_category_STANDARD": "Regelsteuersatz",
+  "tax_category_REDUCED": "Ermäßigter Steuersatz",
+  "tax_category_EXEMPT": "Steuerfrei",
+  "tax_category_REVERSE_CHARGE": "Reverse Charge",
+  "tax_category_SMALL_BUSINESS": "Kleinunternehmer (§ 19 UStG)"
 }

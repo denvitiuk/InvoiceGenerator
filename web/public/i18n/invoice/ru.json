@@ -33,5 +33,17 @@
   "page": "Стр.",
   "rc_note": "НДС оплачивается получателем (Reverse-Charge).",
   "ku_note": "Согласно §19 UStG, НДС не начисляется.",
-  "object": "Объект"
+  "object": "Объект",
+  "customer_number": "Номер клиента",
+  "due_date": "Срок оплаты",
+  "net_amount": "Сумма нетто",
+  "vat_on": "с",
+  "vat_total": "НДС итого",
+  "gross_total": "Итого к оплате",
+  "tax_notes": "Налоговые примечания",
+  "tax_category_STANDARD": "Стандартная ставка",
+  "tax_category_REDUCED": "Сниженная ставка",
+  "tax_category_EXEMPT": "Освобождено от НДС",
+  "tax_category_REVERSE_CHARGE": "Reverse Charge",
+  "tax_category_SMALL_BUSINESS": "Малый предприниматель (§ 19 UStG)"
 }

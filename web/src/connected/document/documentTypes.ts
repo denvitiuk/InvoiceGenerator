@@ -12,6 +12,12 @@ export interface ManualLineRecord {
  */
 export interface EncryptedDocumentPlaintext {
   schemaVersion: 1;
+  /**
+   * The work package's billingProfileRef at save time. Lets a later load
+   * ignore a recipient that belonged to a different customer profile.
+   * Optional: documents saved before this field existed don't carry it.
+   */
+  billingProfileRef?: string;
   invoiceDataSubset: Partial<InvoiceData>;
   manualLines: ManualLineRecord[];
   order: string[];

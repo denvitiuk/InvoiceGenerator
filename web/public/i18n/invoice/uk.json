@@ -35,5 +35,17 @@
   "page": "Стор.",
   "rc_note": "ПДВ сплачується отримувачем (Reverse-Charge).",
   "ku_note": "Відповідно до §19 UStG, ПДВ не нараховується.",
-  "object": "Об’єкт"
+  "object": "Об’єкт",
+  "customer_number": "Номер клієнта",
+  "due_date": "Термін оплати",
+  "net_amount": "Сума нетто",
+  "vat_on": "з",
+  "vat_total": "ПДВ разом",
+  "gross_total": "Разом до сплати",
+  "tax_notes": "Податкові примітки",
+  "tax_category_STANDARD": "Стандартна ставка",
+  "tax_category_REDUCED": "Знижена ставка",
+  "tax_category_EXEMPT": "Звільнено від ПДВ",
+  "tax_category_REVERSE_CHARGE": "Reverse Charge",
+  "tax_category_SMALL_BUSINESS": "Малий підприємець (§ 19 UStG)"
 }

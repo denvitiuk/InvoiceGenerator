@@ -23,16 +23,26 @@ export interface EditorExchangeResponse {
   permissions: EditorPermissionsDTO;
 }
 
+export type TaxCategoryDTO = "STANDARD" | "REDUCED" | "EXEMPT" | "REVERSE_CHARGE" | "SMALL_BUSINESS";
+
+export type InvoiceNumberSourceDTO = "SEQUENCE" | "MANUAL";
+
+// Nullable fields below are sent explicitly as `null` by the backend (its
+// WorkPackageDTO has no defaults, see InvoicingDto.kt) — they are never
+// optional/omitted. decodeWorkPackage() (mapping/workPackageDecoder.ts)
+// enforces this shape at the API boundary.
 export interface WorkPackageLineDTO {
   invoiceWorkItemId: string;
-  workDate?: string;
-  workType?: string;
-  description?: string;
+  workDate: string | null;
+  workType: string | null;
+  description: string | null;
   workerCount: number;
   quantity: string;
   unit: string;
   unitPrice: string;
   vatRate: string;
+  taxCategory: TaxCategoryDTO;
+  taxExemptionReason: string | null;
   netAmount: string;
   vatAmount: string;
   grossAmount: string;
@@ -42,27 +52,66 @@ export interface WorkPackageLineDTO {
   requiresReview: boolean;
 }
 
+export interface InvoiceTotalsDTO {
+  netAmount: string;
+  vatAmount: string;
+  grossAmount: string;
+}
+
+export interface VatSummaryEntryDTO {
+  vatRate: string;
+  taxCategory: TaxCategoryDTO;
+  taxExemptionReason: string | null;
+  netAmount: string;
+  vatAmount: string;
+  grossAmount: string;
+}
+
+/** Safe customer metadata only — full legal details live in the encrypted vault. */
+export interface InvoiceCustomerSnapshotDTO {
+  invoiceCustomerId: string;
+  customerNumber: string | null;
+  displayName: string | null;
+}
+
 export interface WorkPackageDTO {
   invoiceId: string;
+  invoiceNumber: string | null;
   status: string;
   revision: number;
+
+  issueDate: string | null;
+  dueDate: string | null;
+  currency: string;
+
+  invoiceCustomerId: string | null;
   billingProfileRef: string;
+  customer: InvoiceCustomerSnapshotDTO | null;
+
+  invoiceNumberSource: InvoiceNumberSourceDTO | null;
+  invoiceNumberPatternSnapshot: string | null;
+
   projectId: number;
   projectName: string;
-  projectLocation?: string;
+  projectLocation: string | null;
   periodStart: string;
   periodEnd: string;
-  issueDate?: string;
-  dueDate?: string;
-  currency: string;
+
   vatRate: string;
   timezone: string;
   aggregationMode: string;
-  invoiceNumber?: string;
   automaticNetAmount: string;
   requiresReview: boolean;
-  numberReservedAt?: string;
-  lines: WorkPackageLineDTO[];
+  numberReservedAt: string | null;
+
+  /** Every line incl. excluded ones. Primary field; always set after decoding. */
+  items: WorkPackageLineDTO[];
+  /** Deprecated backend alias of `items`; only read as a fallback by the decoder. */
+  lines?: WorkPackageLineDTO[];
+
+  /** Cover only non-excluded lines. */
+  totals: InvoiceTotalsDTO;
+  vatSummary: VatSummaryEntryDTO[];
 }
 
 export interface EncryptedVaultDTO {
@@ -125,17 +174,35 @@ export interface InvoiceItemOverrideRequest {
   unit?: string;
   unitPrice?: string;
   netAmount?: string;
+  vatRate?: string;
+  taxCategory?: TaxCategoryDTO;
+  taxExemptionReason?: string;
 }
 
 export interface ReserveInvoiceNumberRequest {
   expectedRevision: number;
-  issueDate: string;
-  dueDate: string;
+  // Optional: the backend defaults issueDate to today (invoice timezone) and
+  // dueDate to issueDate + the company's payment terms.
+  issueDate?: string;
+  dueDate?: string;
 }
 
+/** Returned by both number:reserve and number:override — the number actually stored by the backend. */
 export interface ReserveInvoiceNumberResponse {
   invoiceNumber: string;
   revision: number;
+  status: string;
+  issueDate: string | null;
+  dueDate: string | null;
+  invoiceNumberSource: InvoiceNumberSourceDTO | null;
+  invoiceNumberPatternSnapshot: string | null;
+}
+
+export interface OverrideInvoiceNumberRequest {
+  expectedRevision: number;
+  invoiceNumber: string;
+  issueDate?: string;
+  dueDate?: string;
 }
 
 export interface FinalizeInvoiceRequest {
@@ -146,6 +213,6 @@ export interface FinalizeInvoiceRequest {
 }
 
 export interface FinalizeInvoiceResponse {
-  invoiceNumber?: string;
+  invoiceNumber: string | null;
   revision: number;
 }

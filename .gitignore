@@ -10,6 +10,8 @@ dist/
 web/public/out/
 build/
 coverage/
+web/.next/
+*.tsbuildinfo
 
 # Logs
 npm-debug.log*

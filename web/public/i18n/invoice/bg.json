@@ -35,5 +35,17 @@
   "page": "Страница",
 
   "rc_note": "ДДС се начислява по механизма за обратно начисляване.",
-  "ku_note": "Съгласно §19 UStG не се начислява ДДС."
+  "ku_note": "Съгласно §19 UStG не се начислява ДДС.",
+  "customer_number": "Клиентски номер",
+  "due_date": "Падеж",
+  "net_amount": "Нетна сума",
+  "vat_on": "върху",
+  "vat_total": "ДДС общо",
+  "gross_total": "Обща сума",
+  "tax_notes": "Данъчни бележки",
+  "tax_category_STANDARD": "Стандартна ставка",
+  "tax_category_REDUCED": "Намалена ставка",
+  "tax_category_EXEMPT": "Освободено от ДДС",
+  "tax_category_REVERSE_CHARGE": "Reverse Charge",
+  "tax_category_SMALL_BUSINESS": "Малък бизнес (§ 19 UStG)"
 }

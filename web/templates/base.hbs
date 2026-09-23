@@ -48,18 +48,27 @@
       <div class="value">{{client.name}}</div>
       {{#each client.addressLines}}<div>{{this}}</div>{{/each}}
       {{#if client.ustId}}<div>{{t "ustId"}}: {{client.ustId}}</div>{{/if}}
+      {{#if customerNumber}}<div>{{t "customer_number"}}: {{customerNumber}}</div>{{/if}}
     </div>
   </section>
 
   <section class="two-col" style="margin-top:12px;">
     <div class="col box">
+      {{#if number}}
+        <div class="label">{{t "invoice_number"}}</div>
+        <div class="value invoice-number">{{number}}</div>
+      {{/if}}
       {{#if issueDate}}
-        <div class="label">{{t "issueDate"}}</div>
+        <div class="label"{{#if number}} style="margin-top:6px;"{{/if}}>{{t "issueDate"}}</div>
         <div>{{issueDate}}</div>
       {{/if}}
       {{#if servicePeriod}}
         <div class="label" style="margin-top:6px;">{{t "servicePeriod"}}</div>
         <div>{{servicePeriod.from}} – {{servicePeriod.to}}</div>
+      {{/if}}
+      {{#if dueDate}}
+        <div class="label" style="margin-top:6px;">{{t "due_date"}}</div>
+        <div>{{dueDate}}</div>
       {{/if}}
     </div>
   </section>
@@ -112,7 +121,11 @@
               <td class="right">{{this.qty}}</td>
               <td>{{this.unit}}</td>
               <td class="right">{{this.unitPrice}}</td>
-              <td class="right">{{this.vatRate}}</td>
+              <td class="right">
+                {{this.vatRate}}
+                {{#if this.taxLabelKey}}<div class="line-tax muted">{{t this.taxLabelKey}}</div>{{/if}}
+                {{#if this.vatAmount}}<div class="line-tax muted">{{this.vatAmount}}</div>{{/if}}
+              </td>
               <td class="right">{{this.total}}</td>
             {{/if}}
           </tr>
@@ -131,6 +144,29 @@
     </tbody>
   </table>
 
+  {{#if taxSummary}}
+    {{!-- Connected mode: server-line amounts are the backend's own; see src/lib/invoiceTax.ts --}}
+    <table class="totals tax-totals">
+      <tbody>
+        <tr><td>{{t "net_amount"}}</td><td class="right">{{taxSummary.net}}</td></tr>
+        {{#each taxSummary.groups}}
+          {{#if this.zeroRated}}
+            <tr class="tax-zero-row"><td>{{t this.categoryKey}} ({{this.rate}}) {{t "vat_on"}} {{this.base}}</td><td class="right">{{this.amount}}</td></tr>
+          {{else}}
+            <tr><td>{{t "vat"}} {{this.rate}} {{t "vat_on"}} {{this.base}}</td><td class="right">{{this.amount}}</td></tr>
+          {{/if}}
+        {{/each}}
+        <tr class="tax-total-row"><td>{{t "vat_total"}}</td><td class="right">{{taxSummary.vatTotal}}</td></tr>
+        <tr class="grand-total-row"><td><strong>{{t "gross_total"}}</strong></td><td class="right"><strong>{{taxSummary.gross}}</strong></td></tr>
+      </tbody>
+    </table>
+    {{#if taxSummary.reasons.length}}
+      <div class="tax-notes">
+        <div class="label">{{t "tax_notes"}}</div>
+        {{#each taxSummary.reasons}}<div class="note">{{t this.categoryKey}}: {{this.reason}}</div>{{/each}}
+      </div>
+    {{/if}}
+  {{else}}
   <table class="totals">
     <tbody>
       <tr><td>{{t "subtotal"}}</td><td class="right">{{subtotal}}</td></tr>
@@ -140,6 +176,7 @@
       <tr><td><strong>{{t "total"}}</strong></td><td class="right"><strong>{{grandTotal}}</strong></td></tr>
     </tbody>
   </table>
+  {{/if}}
 
   {{#if showPaymentBox}}
     <div style="margin-top:12px; max-width: 60%;">
