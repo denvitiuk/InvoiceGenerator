@@ -45,5 +45,8 @@
   "tax_category_REDUCED": "Сниженная ставка",
   "tax_category_EXEMPT": "Освобождено от НДС",
   "tax_category_REVERSE_CHARGE": "Reverse Charge",
-  "tax_category_SMALL_BUSINESS": "Малый предприниматель (§ 19 UStG)"
+  "tax_category_SMALL_BUSINESS": "Малый предприниматель (§ 19 UStG)",
+  "draft": "ЧЕРНОВИК",
+  "draft_notice": "Черновик – ещё не действительный счёт; номер присваивается при выставлении",
+  "no_items": "Нет позиций для выставления"
 }

@@ -47,5 +47,8 @@
   "tax_category_REDUCED": "Знижена ставка",
   "tax_category_EXEMPT": "Звільнено від ПДВ",
   "tax_category_REVERSE_CHARGE": "Reverse Charge",
-  "tax_category_SMALL_BUSINESS": "Малий підприємець (§ 19 UStG)"
+  "tax_category_SMALL_BUSINESS": "Малий підприємець (§ 19 UStG)",
+  "draft": "ЧЕРНЕТКА",
+  "draft_notice": "Чернетка – ще не дійсний рахунок; номер присвоюється під час виставлення",
+  "no_items": "Немає позицій для виставлення"
 }

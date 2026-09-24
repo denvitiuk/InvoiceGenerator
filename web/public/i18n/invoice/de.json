@@ -67,5 +67,8 @@
   "tax_category_REDUCED": "Ermäßigter Steuersatz",
   "tax_category_EXEMPT": "Steuerfrei",
   "tax_category_REVERSE_CHARGE": "Reverse Charge",
-  "tax_category_SMALL_BUSINESS": "Kleinunternehmer (§ 19 UStG)"
+  "tax_category_SMALL_BUSINESS": "Kleinunternehmer (§ 19 UStG)",
+  "draft": "ENTWURF",
+  "draft_notice": "Entwurf – noch keine gültige Rechnung, Rechnungsnummer wird bei Ausstellung vergeben",
+  "no_items": "Keine abrechenbaren Positionen"
 }

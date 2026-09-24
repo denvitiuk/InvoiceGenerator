@@ -66,5 +66,8 @@
   "tax_category_REDUCED": "Reduced rate",
   "tax_category_EXEMPT": "VAT exempt",
   "tax_category_REVERSE_CHARGE": "Reverse charge",
-  "tax_category_SMALL_BUSINESS": "Small business (§ 19 UStG)"
+  "tax_category_SMALL_BUSINESS": "Small business (§ 19 UStG)",
+  "draft": "DRAFT",
+  "draft_notice": "Draft – not a valid invoice yet; the number is assigned on issue",
+  "no_items": "No billable items"
 }

@@ -16,6 +16,8 @@ import {
   summarizeTax,
   type LineTax,
 } from "@/lib/invoiceTax";
+import { enrichLineDescription } from "@/connected/mapping/workPackageMapping";
+import type { WorkPackageLineDTO } from "@/connected/types";
 
 
 const hbs = Handlebars.create();
@@ -68,10 +70,82 @@ function sanitizeDescriptionHtml(value: unknown): string {
     .replace(/&lt;br\s*\/?&gt;/gi, "<br />");
 }
 
-function lineItemDescriptionToHtml(item: LineItem): string {
-  return typeof item.descriptionHtml === "string"
-    ? sanitizeDescriptionHtml(item.descriptionHtml)
-    : legacyDescriptionToHtml(item.description);
+function lineItemDescriptionToHtml(item: LineItem, lang: Lang): string {
+  if (typeof item.descriptionHtml === "string") return sanitizeDescriptionHtml(item.descriptionHtml);
+  return legacyDescriptionToHtml(item.serverDetails ? previewLineDescription(item, lang) : item.description);
+}
+
+/**
+ * Fixed codes the Zeiterfassung backend itself writes into automatic lines
+ * (BillingWorkItemService: unit "hour" and work type "Regular working hours";
+ * InvoiceDraftService: unit "pauschal" for lines without a unit). Only these exact
+ * values on backend lines (serverDetails) are translated - units and texts an
+ * admin typed (task units, manual lines) are printed as entered.
+ */
+const SYSTEM_UNIT_LABELS: Record<string, Record<Lang, string>> = {
+  hour: { de: "Std.", en: "h", ru: "ч", bg: "ч", tr: "sa.", uk: "год." },
+  pauschal: { de: "pauschal", en: "flat rate", ru: "фикс.", bg: "фикс.", tr: "götürü", uk: "фікс." },
+};
+
+const SYSTEM_GROUP_LABELS: Record<string, Record<Lang, string>> = {
+  "Regular working hours": {
+    de: "Reguläre Arbeitszeit",
+    en: "Regular working hours",
+    ru: "Основное рабочее время",
+    bg: "Редовно работно време",
+    tr: "Normal çalışma saatleri",
+    uk: "Основний робочий час",
+  },
+};
+
+function systemLabel(table: Record<string, Record<Lang, string>>, item: LineItem, value: string | undefined, lang: Lang): string {
+  const raw = value ?? "";
+  if (!item.serverDetails) return raw;
+  return Object.prototype.hasOwnProperty.call(table, raw) ? table[raw][lang] : raw;
+}
+
+export function lineUnitLabel(item: LineItem, lang: Lang): string {
+  return systemLabel(SYSTEM_UNIT_LABELS, item, item.unit, lang);
+}
+
+export function lineGroupLabel(item: LineItem, lang: Lang): string {
+  return systemLabel(SYSTEM_GROUP_LABELS, item, String(item.group || "").trim(), lang);
+}
+
+/**
+ * Backend preview lines carry raw facts (serverDetails); they are localized here
+ * with the same wording the connected UI uses, so both paths print identically.
+ */
+function previewLineDescription(item: LineItem, lang: Lang): string {
+  const details = item.serverDetails ?? {};
+  const workDate = typeof details.workDateISO === "string" && /^\d{4}-\d{2}-\d{2}$/.test(details.workDateISO)
+    ? details.workDateISO
+    : null;
+  const workerCount = Number.isFinite(details.workerCount) ? Math.max(0, Math.floor(details.workerCount as number)) : 0;
+  return enrichLineDescription(
+    {
+      workDate,
+      description: item.description ?? "",
+      workerCount,
+      quantity: String(item.qty ?? 0),
+      unit: lineUnitLabel(item, lang),
+    } as unknown as WorkPackageLineDTO,
+    lang
+  );
+}
+
+/**
+ * The template is compiled with noEscape (it embeds pre-built HTML such as
+ * descriptions and tax rows), so every free-text input field is escaped here -
+ * company/client details, notes, object and units are user data and must never
+ * become markup in the headless browser that prints the PDF.
+ */
+function escapeOptional(value: unknown): string | undefined {
+  return value === undefined || value === null || value === "" ? undefined : escapeHtml(value);
+}
+
+function escapeLines(lines: unknown): string[] {
+  return Array.isArray(lines) ? lines.map((l) => escapeHtml(l)) : [];
 }
 
 function monthlyCalculationToModel(calculation: MonthlyCalculation | undefined, lang: Lang) {
@@ -377,13 +451,13 @@ export function calcModel(data: InvoiceData, lang: Lang, baseUrl?: string) {
       }
     }
     return {
-      group: String(it.group || "").trim(),
-      descriptionHtml: lineItemDescriptionToHtml(it),
+      group: lineGroupLabel(it, lang),
+      descriptionHtml: lineItemDescriptionToHtml(it, lang),
       monthlyCalculation: monthlyCalculationToModel(it.monthlyCalculation, lang),
       detailed,
       dailyRows,
       qty: quantity,
-      unit: it.unit ?? "",
+      unit: escapeHtml(lineUnitLabel(it, lang)),
       unitPrice: fmtMoney(it.unitPrice, data.currency, lang),
       vatRate: vatRateLabel,
       taxLabelKey,
@@ -432,7 +506,7 @@ export function calcModel(data: InvoiceData, lang: Lang, baseUrl?: string) {
   const customerNumber = typeof (data as any).customerNumber === "string" ? escapeHtml((data as any).customerNumber.trim()) : "";
 
   const rawObject = String((data as any).object ?? "").trim();
-  const object = rawObject === "-" || rawObject === "—" ? "" : rawObject;
+  const object = rawObject === "-" || rawObject === "—" ? "" : escapeHtml(rawObject);
 
   const dueRaw = (data as any).dueDays;
   const dueNum = typeof dueRaw === "number" ? dueRaw : parseInt(String(dueRaw), 10);
@@ -447,26 +521,44 @@ export function calcModel(data: InvoiceData, lang: Lang, baseUrl?: string) {
       : lang === "uk" ? `До сплати протягом ${dueNum} днів`
       : `Payable within ${dueNum} days`);
 
-  const notes = [...(data.notes ?? [])];
+  const notes = escapeLines(data.notes ?? []);
   if (data.kleinunternehmer) notes.push("Gemäß §19 UStG wird keine Umsatzsteuer berechnet.");
   if (data.reverseCharge) notes.push("Steuerschuldnerschaft des Leistungsempfängers (Reverse-Charge).");
 
   const extraImages = (data.extraImages ?? []).map((img: ExtraImage) => ({
-    src: fileUrl(img.path, baseUrl),
-    caption: img.caption,
+    src: escapeOptional(fileUrl(img.path, baseUrl)),
+    caption: escapeOptional(img.caption),
     maxWidthPx: img.maxWidthPx ?? 480,
   }));
 
   return {
     language: lang,
     themeStyle: themeToCssVars((data as any).theme),
-    number: data.number,
+    number: escapeHtml(data.number ?? ""),
+    draft: (data as any).draft === true,
     object,
     dueDate,
     customerNumber,
     taxSummary,
-    company: { ...data.company, logoPath: fileUrl(data.company.logoPath, baseUrl), logoUrl: fileUrl((data.company as any).logoUrl, baseUrl) },
-    client: data.client,
+    company: {
+      name: escapeHtml(data.company?.name ?? ""),
+      addressLines: escapeLines(data.company?.addressLines),
+      email: escapeOptional(data.company?.email),
+      phone: escapeOptional(data.company?.phone),
+      website: escapeOptional(data.company?.website),
+      ustId: escapeOptional((data.company as any)?.ustId),
+      steuerNr: escapeOptional((data.company as any)?.steuerNr),
+      iban: escapeOptional(data.company?.iban),
+      bic: escapeOptional(data.company?.bic),
+      bankName: escapeOptional(data.company?.bankName),
+      logoPath: escapeOptional(fileUrl(data.company?.logoPath, baseUrl)),
+      logoUrl: escapeOptional(fileUrl((data.company as any)?.logoUrl, baseUrl)),
+    },
+    client: {
+      name: escapeHtml(data.client?.name ?? ""),
+      addressLines: escapeLines(data.client?.addressLines),
+      ustId: escapeOptional((data.client as any)?.ustId),
+    },
     issueDate,
     servicePeriod: data.servicePeriod
       ? {
@@ -481,7 +573,11 @@ export function calcModel(data: InvoiceData, lang: Lang, baseUrl?: string) {
     vatBlocks: data.kleinunternehmer ? [] : vatBlocks,
     grandTotal: taxSummary ? taxSummary.gross : fmtMoney(grand, data.currency, lang),
     notes,
-    extraTables: data.extraTables ?? [],
+    extraTables: (data.extraTables ?? []).map((t) => ({
+      title: escapeOptional(t.title),
+      columns: escapeLines(t.columns),
+      rows: (t.rows ?? []).map((r) => escapeLines(r)),
+    })),
     extraImages,
   };
 }

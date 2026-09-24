@@ -47,5 +47,8 @@
   "tax_category_REDUCED": "Намалена ставка",
   "tax_category_EXEMPT": "Освободено от ДДС",
   "tax_category_REVERSE_CHARGE": "Reverse Charge",
-  "tax_category_SMALL_BUSINESS": "Малък бизнес (§ 19 UStG)"
+  "tax_category_SMALL_BUSINESS": "Малък бизнес (§ 19 UStG)",
+  "draft": "ЧЕРНОВА",
+  "draft_notice": "Чернова – все още не е валидна фактура; номерът се присвоява при издаване",
+  "no_items": "Няма позиции за фактуриране"
 }

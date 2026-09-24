@@ -227,3 +227,14 @@ h2, .header { break-after: avoid; }
 .tax-totals, .tax-notes { break-inside: avoid; page-break-inside: avoid; }
 .tax-notes { margin-top: 10px; margin-left: auto; width: 60%; }
 .tax-notes .note { margin-top: 4px; font-size: 12px; }
+
+/* Backend preview drafts (data.draft) */
+.draft-watermark {
+    color: color-mix(in srgb, #dc2626 14%, transparent);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
+.draft-notice {
+    color: #b91c1c;
+    font-weight: 600;
+}

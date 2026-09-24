@@ -72,5 +72,8 @@
   "tax_category_REDUCED": "İndirimli oran",
   "tax_category_EXEMPT": "KDV'den muaf",
   "tax_category_REVERSE_CHARGE": "Reverse Charge",
-  "tax_category_SMALL_BUSINESS": "Küçük işletme (§ 19 UStG)"
+  "tax_category_SMALL_BUSINESS": "Küçük işletme (§ 19 UStG)",
+  "draft": "TASLAK",
+  "draft_notice": "Taslak – henüz geçerli bir fatura değildir; numara düzenlemede verilir",
+  "no_items": "Faturalanacak kalem yok"
 }

@@ -73,6 +73,12 @@ export interface LineItem {
     vatAmount?: string;
     grossAmount?: string;
     workerCount?: number;
+
+    // Backend preview (POST /invoicing/invoices/{id}/preview) only: raw facts of
+    // an automatic line. The template localizes them into the description
+    // (date + "N Personen · X h gesamt") in the document language, exactly like
+    // the connected UI does via enrichLineDescription(). Absent everywhere else.
+    serverDetails?: { workDateISO?: string; workerCount?: number };
 }
 
 export interface ExtraTable {
@@ -144,6 +150,10 @@ export interface InvoiceData {
     // customer number from the work package's customer snapshot.
     dueDateISO?: string;
     customerNumber?: string;
+
+    // Backend preview only: the invoice is an unnumbered draft. The template
+    // shows a localized draft watermark/notice and never a fake line.
+    draft?: boolean;
 }
 
 // ===== API request/response helpers for web/lib/api.ts =====

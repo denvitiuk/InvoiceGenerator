@@ -73,6 +73,8 @@ export function normalizeInvoice(data: Partial<InvoiceData> | undefined): Invoic
     customerNumber: typeof (d as any).customerNumber === "string" && (d as any).customerNumber.trim()
       ? String((d as any).customerNumber).trim().slice(0, 64)
       : undefined,
+    // Backend preview drafts: unnumbered, rendered with a draft watermark.
+    draft: (d as any).draft === true,
 
     company: {
       name: d.company?.name || "—",
@@ -95,10 +97,14 @@ export function normalizeInvoice(data: Partial<InvoiceData> | undefined): Invoic
       ustId: (d.client as any)?.ustId,
     },
 
+    // A draft without billable lines stays empty (the template says so) instead
+    // of getting a placeholder row that would look like a real 0,00 € invoice.
     items:
       Array.isArray(d.items) && d.items.length
         ? (d.items as any)
-        : [{ description: "", qty: 1, unit: "", unitPrice: 0, vatRate: 0 }],
+        : (d as any).draft === true
+          ? []
+          : [{ description: "", qty: 1, unit: "", unitPrice: 0, vatRate: 0 }],
 
     extraTables: d.extraTables || [],
     extraImages: d.extraImages || [],

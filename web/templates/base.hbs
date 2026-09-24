@@ -15,11 +15,13 @@
 
   {{#if watermark}}
     <div class="watermark">{{watermark}}</div>
+  {{else if draft}}
+    <div class="watermark draft-watermark">{{t "draft"}}</div>
   {{/if}}
 
   <header class="header">
     <div>
-      <h1>{{number}}</h1>
+      <h1>{{#if number}}{{number}}{{else if draft}}{{t "draft"}}{{/if}}</h1>
       <div class="muted">{{company.name}}</div>
     </div>
     <div class="logo-wrap">
@@ -57,6 +59,9 @@
       {{#if number}}
         <div class="label">{{t "invoice_number"}}</div>
         <div class="value invoice-number">{{number}}</div>
+      {{else if draft}}
+        <div class="label">{{t "invoice_number"}}</div>
+        <div class="value draft-notice">{{t "draft_notice"}}</div>
       {{/if}}
       {{#if issueDate}}
         <div class="label"{{#if number}} style="margin-top:6px;"{{/if}}>{{t "issueDate"}}</div>
@@ -92,6 +97,11 @@
       </tr>
     </thead>
     <tbody>
+      {{#unless itemRows.length}}
+        {{#if draft}}
+          <tr class="no-items-row"><td colspan="6" class="muted">{{t "no_items"}}</td></tr>
+        {{/if}}
+      {{/unless}}
       {{#each itemRows}}
         {{#if this.isGroup}}
           <tr class="item-group-row">
