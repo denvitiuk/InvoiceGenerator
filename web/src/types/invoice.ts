@@ -78,7 +78,7 @@ export interface LineItem {
     // an automatic line. The template localizes them into the description
     // (date + "N Personen · X h gesamt") in the document language, exactly like
     // the connected UI does via enrichLineDescription(). Absent everywhere else.
-    serverDetails?: { workDateISO?: string; workerCount?: number };
+    serverDetails?: { workDateISO?: string; workDatesISO?: string[]; workerCount?: number };
 }
 
 export interface ExtraTable {
@@ -154,6 +154,27 @@ export interface InvoiceData {
     // Backend preview only: the invoice is an unnumbered draft. The template
     // shows a localized draft watermark/notice and never a fake line.
     draft?: boolean;
+
+    // Connected-invoice mode only (backend e-invoice snapshot): buyer/Leitweg/order/
+    // contract/project references and the e-invoice format. For a final ZUGFeRD
+    // invoice electronicInvoice carries the exact XML the PDF/A-3 must embed.
+    references?: {
+        buyerReference?: string;
+        leitwegId?: string;
+        orderReference?: string;
+        contractReference?: string;
+        projectReference?: string;
+    };
+    electronicInvoice?: {
+        format: "PDF" | "ZUGFERD_EN16931" | "XRECHNUNG_CII";
+        standard: string;
+        version?: string;
+        profile?: string;
+        xmlFileName?: string;
+        conformanceLevel?: string;
+        xmlBase64?: string;
+        xmlSha256?: string;
+    };
 }
 
 // ===== API request/response helpers for web/lib/api.ts =====

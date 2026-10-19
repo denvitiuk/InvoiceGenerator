@@ -75,5 +75,12 @@
   "tax_category_SMALL_BUSINESS": "Küçük işletme (§ 19 UStG)",
   "draft": "TASLAK",
   "draft_notice": "Taslak – henüz geçerli bir fatura değildir; numara düzenlemede verilir",
-  "no_items": "Faturalanacak kalem yok"
+  "no_items": "Faturalanacak kalem yok",
+  "buyer_reference": "Referansınız",
+  "leitweg_id": "Leitweg-ID",
+  "order_reference": "Sipariş numarası",
+  "contract_reference": "Sözleşme numarası",
+  "project_reference": "Proje numarası",
+  "e_invoice": "E-fatura",
+  "e_invoice_attached": "Yapılandırılmış fatura verileri (factur-x.xml) bu PDF dosyasına gömülüdür."
 }

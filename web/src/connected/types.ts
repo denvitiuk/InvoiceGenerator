@@ -50,6 +50,17 @@ export interface WorkPackageLineDTO {
   isExcluded: boolean;
   isOverridden: boolean;
   requiresReview: boolean;
+  /** Anonymous per-person time behind an hours line, longest first (older backends: absent). */
+  people?: WorkPackagePersonDTO[];
+  /** Review hints as stable codes: SHORT_WORK, SEVERAL_SESSIONS, AUTO_COMPLETED, ... */
+  notes?: string[];
+  /** The days the work was done (YYYY-MM-DD, ascending); older backends: absent. */
+  workDates?: string[];
+}
+
+export interface WorkPackagePersonDTO {
+  minutes: number;
+  sessions: number;
 }
 
 export interface InvoiceTotalsDTO {

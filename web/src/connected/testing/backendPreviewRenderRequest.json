@@ -1,0 +1,84 @@
+{
+  "data": {
+    "language": "de",
+    "currency": "EUR",
+    "number": "",
+    "draft": true,
+    "issueDateISO": "2026-09-30",
+    "dueDateISO": "2026-10-14",
+    "dueDays": 14,
+    "servicePeriod": {
+      "fromISO": "2026-09-01",
+      "toISO": "2026-09-30"
+    },
+    "company": {
+      "name": "Glanz & Co. Gebäudeservice",
+      "addressLines": [
+        "Hafenstraße 1",
+        "20457 Hamburg"
+      ],
+      "ustId": "DE123456789",
+      "steuerNr": null,
+      "email": null,
+      "phone": null,
+      "website": null,
+      "iban": "DE89370400440532013000",
+      "bic": "COBADEFFXXX",
+      "bankName": "Commerzbank"
+    },
+    "client": {
+      "name": "Hausverwaltung Nord GmbH",
+      "addressLines": [
+        "Mönckebergstraße 7",
+        "20095 Hamburg"
+      ],
+      "ustId": "DE987654321",
+      "steuerNr": null,
+      "email": null,
+      "phone": null,
+      "website": null,
+      "iban": null,
+      "bic": null,
+      "bankName": null
+    },
+    "object": "Objekt Nord — Hafenstr. 5",
+    "customerNumber": "K-1001",
+    "notes": [
+      "Bitte Kundennummer angeben"
+    ],
+    "items": [
+      {
+        "serverItemId": "ea90f5ee-e0d1-4ccf-b959-2638e04a1145",
+        "group": "Regular working hours",
+        "description": "",
+        "qty": 8.0,
+        "unit": "hour",
+        "unitPrice": 20.0,
+        "vatRate": 19.0,
+        "taxCategory": "STANDARD",
+        "netAmount": "160.00",
+        "vatAmount": "30.40",
+        "grossAmount": "190.40",
+        "workerCount": 1,
+        "serverDetails": {
+          "workDateISO": "2026-09-15",
+          "workerCount": 1
+        }
+      },
+      {
+        "serverItemId": "c104f5e2-6ded-4bb1-9207-fc173b714547",
+        "description": "Material costs",
+        "qty": 3.0,
+        "unit": "piece",
+        "unitPrice": 25.0,
+        "vatRate": 19.0,
+        "taxCategory": "STANDARD",
+        "netAmount": "75.00",
+        "vatAmount": "14.25",
+        "grossAmount": "89.25",
+        "workerCount": 0
+      }
+    ]
+  },
+  "language": "de"
+}

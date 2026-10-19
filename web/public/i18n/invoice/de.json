@@ -70,5 +70,12 @@
   "tax_category_SMALL_BUSINESS": "Kleinunternehmer (§ 19 UStG)",
   "draft": "ENTWURF",
   "draft_notice": "Entwurf – noch keine gültige Rechnung, Rechnungsnummer wird bei Ausstellung vergeben",
-  "no_items": "Keine abrechenbaren Positionen"
+  "no_items": "Keine abrechenbaren Positionen",
+  "buyer_reference": "Ihre Referenz",
+  "leitweg_id": "Leitweg-ID",
+  "order_reference": "Bestellnummer",
+  "contract_reference": "Vertragsnummer",
+  "project_reference": "Projektnummer",
+  "e_invoice": "E-Rechnung",
+  "e_invoice_attached": "Die strukturierten Rechnungsdaten (factur-x.xml) sind in diese PDF-Datei eingebettet."
 }

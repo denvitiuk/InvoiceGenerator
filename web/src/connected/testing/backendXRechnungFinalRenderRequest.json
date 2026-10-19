@@ -1,0 +1,74 @@
+{
+  "data": {
+    "language": "de",
+    "currency": "EUR",
+    "number": "RE-2026-001",
+    "draft": false,
+    "issueDateISO": "2026-09-30",
+    "dueDateISO": "2026-10-14",
+    "dueDays": 14,
+    "servicePeriod": {
+      "fromISO": "2026-09-01",
+      "toISO": "2026-09-30"
+    },
+    "company": {
+      "name": "Glanz Gebäudeservice GmbH",
+      "addressLines": [
+        "Hafenstraße 1",
+        "20457 Hamburg"
+      ],
+      "ustId": "DE123456789",
+      "steuerNr": "22/815/08150",
+      "email": "rechnung@glanz.example",
+      "phone": "+49 40 1234567",
+      "website": null,
+      "iban": "DE02120300000000202051",
+      "bic": "BYLADEM1001",
+      "bankName": "Beispielbank",
+      "contactName": "Erika Beispiel",
+      "legalRegistrationId": "HRB 12345"
+    },
+    "client": {
+      "name": "Bezirksamt Beispielstadt",
+      "addressLines": [
+        "Rathausplatz 1",
+        "10115 Berlin"
+      ],
+      "ustId": null
+    },
+    "object": "Objekt Nord — Hafenstr. 5",
+    "customerNumber": "K-cb11fc",
+    "references": {
+      "leitwegId": "04011000-12345-03"
+    },
+    "electronicInvoice": {
+      "format": "XRECHNUNG_CII",
+      "standard": "XRechnung",
+      "version": "3.0.2",
+      "profile": "CIUS XRechnung, UN/CEFACT CII D16B",
+      "xmlFileName": "xrechnung-RE-2026-001.xml"
+    },
+    "notes": [],
+    "items": [
+      {
+        "serverItemId": "e83d1da9-382d-4bf7-877b-94914f0ac263",
+        "group": "Unterhaltsreinigung",
+        "description": "",
+        "qty": 8,
+        "unit": "hour",
+        "unitPrice": 20.0,
+        "vatRate": 19.0,
+        "taxCategory": "STANDARD",
+        "netAmount": "160.00",
+        "vatAmount": "30.40",
+        "grossAmount": "190.40",
+        "workerCount": 1,
+        "serverDetails": {
+          "workDateISO": "2026-09-15",
+          "workerCount": 1
+        }
+      }
+    ]
+  },
+  "language": "de"
+}

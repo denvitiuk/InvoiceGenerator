@@ -72,6 +72,13 @@ describe("mapWorkPackageToInvoiceData", () => {
 });
 
 describe("enrichLineDescription", () => {
+  it("prints the work days as weekday + day.month, all days of a line that spans several", () => {
+    expect(enrichLineDescription(line({ workDate: "2026-10-01", workerCount: 0, description: null }), "de")).toBe("Do, 1.10");
+    const multi = line({ workDate: null, workDates: ["2026-09-30", "2026-10-01"], workerCount: 0, description: null });
+    expect(enrichLineDescription(multi, "de")).toBe("Mi, 30.09; Do, 1.10");
+    expect(enrichLineDescription(multi, "ru")).toBe("ср, 30.09; чт, 1.10");
+  });
+
   it("never divides total quantity by workerCount or implies an equal split", () => {
     const desc = enrichLineDescription(line({ workerCount: 3, quantity: "15", unit: "h" }), "de");
     expect(desc).toContain("3 Personen");

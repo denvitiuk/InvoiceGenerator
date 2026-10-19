@@ -1,3 +1,5 @@
+import { EmbeddedXmlError, normalizeElectronicInvoice, normalizeReferences, zugferdXmlToEmbed } from "../../server/lib/einvoice";
+import { toZugferdPdfA3 } from "../../server/lib/pdfa3";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { renderInvoiceHtml } from "../../server/lib/template";
 import { getInvoiceStrings } from "../../server/lib/i18n";
@@ -73,6 +75,10 @@ export function normalizeInvoice(data: Partial<InvoiceData> | undefined): Invoic
     customerNumber: typeof (d as any).customerNumber === "string" && (d as any).customerNumber.trim()
       ? String((d as any).customerNumber).trim().slice(0, 64)
       : undefined,
+    // Connected-invoice mode only: BT-10..BT-13 references and the e-invoice format
+    // (for a final ZUGFeRD invoice also the exact XML to embed).
+    references: normalizeReferences((d as any).references),
+    electronicInvoice: normalizeElectronicInvoice((d as any).electronicInvoice),
     // Backend preview drafts: unnumbered, rendered with a draft watermark.
     draft: (d as any).draft === true,
 
@@ -289,13 +295,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const inv = normalizeInvoice(((req.body as any)?.data ?? req.body) as any);
+    // Final ZUGFeRD invoice: the backend's exact XML (checked against its SHA-256
+    // before anything is rendered) becomes factur-x.xml of a PDF/A-3.
+    let zugferdXml: Buffer | null;
+    try {
+      zugferdXml = zugferdXmlToEmbed((inv as any).electronicInvoice, (inv as any).draft === true);
+    } catch (e) {
+      if (e instanceof EmbeddedXmlError) return res.status(400).json({ error: e.message });
+      throw e;
+    }
     const dict = await getInvoiceStrings(inv.language);
     const pageLabel = (dict.page || "Page").toString();
     const footerTemplate = buildFooterTemplate(inv, pageLabel);
 
     const baseUrl = getBaseUrl(req);
     const html = await buildPreviewHtml(req.body, baseUrl);
-    const pdf = await htmlToPdfBuffer(html, { footerTemplate });
+    let pdf = await htmlToPdfBuffer(html, { footerTemplate });
+    if (zugferdXml) {
+      const title = `${String(dict.invoice || "Invoice")} ${inv.number}`.trim();
+      pdf = Buffer.from(await toZugferdPdfA3(pdf, {
+        xml: zugferdXml,
+        conformanceLevel: (inv as any).electronicInvoice?.conformanceLevel || "EN 16931",
+        title,
+        author: inv.company?.name || "",
+        subject: `${title} (ZUGFeRD 2.5.2, EN 16931)`,
+      }));
+    }
 
     res.setHeader("Content-Type", "application/pdf");
     const inline =
@@ -303,7 +328,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       String((req.body as any)?.inline ?? "") === "1" ||
       String((req.body as any)?.disposition ?? "").toLowerCase() === "inline";
 
-    const baseName = sanitizeFilename(inv.number ? `invoice-${inv.number}` : "invoice");
+    const baseName = sanitizeFilename(inv.number ? `${zugferdXml ? "zugferd" : "invoice"}-${inv.number}` : "invoice");
     const filename = `${baseName}.pdf`;
 
     res.setHeader(

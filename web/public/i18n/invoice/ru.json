@@ -48,5 +48,12 @@
   "tax_category_SMALL_BUSINESS": "Малый предприниматель (§ 19 UStG)",
   "draft": "ЧЕРНОВИК",
   "draft_notice": "Черновик – ещё не действительный счёт; номер присваивается при выставлении",
-  "no_items": "Нет позиций для выставления"
+  "no_items": "Нет позиций для выставления",
+  "buyer_reference": "Ваш номер ссылки",
+  "leitweg_id": "Leitweg-ID",
+  "order_reference": "Номер заказа",
+  "contract_reference": "Номер договора",
+  "project_reference": "Номер проекта",
+  "e_invoice": "Электронный счёт",
+  "e_invoice_attached": "Структурированные данные счёта (factur-x.xml) встроены в этот PDF-файл."
 }

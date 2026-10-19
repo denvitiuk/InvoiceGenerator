@@ -8,6 +8,47 @@ import { useConnectedInvoiceStore } from "../store/connectedInvoiceStore";
 import type { ConnectedSessionValue } from "../session/useConnectedSession";
 import type { WorkPackageLineDTO } from "../types";
 
+/** "1 h 40 min" / "12 min" in the UI language. */
+function formatMinutes(t: ReturnType<typeof useT>, minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return h > 0 ? t("connected_duration_hm", { h, m }) : t("connected_duration_m", { m });
+}
+
+/** Who worked how long on the line (anonymous) and what the admin should check. */
+function LineEvidence({ line }: { line: WorkPackageLineDTO }) {
+  const t = useT();
+  const people = line.people ?? [];
+  const notes = line.notes ?? [];
+  if (people.length === 0 && notes.length === 0) return null;
+  return (
+    <div className="connected-line-evidence" style={{ fontSize: 12, marginTop: 6 }}>
+      {people.length > 0 && (
+        <div className="connected-muted">
+          {people
+            .map((p, i) =>
+              t(p.sessions > 1 ? "connected_line_person_sessions" : "connected_line_person", {
+                index: i + 1,
+                duration: formatMinutes(t, p.minutes),
+                sessions: p.sessions,
+              }),
+            )
+            .join(" · ")}
+        </div>
+      )}
+      {notes.map((code) => {
+        const key = `connected_note_${code}`;
+        const text = t(key);
+        return (
+          <div key={code} style={{ color: "#9a3412", marginTop: 2 }}>
+            {text === key ? code : text}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function ServerLineRow({
   line,
   readOnly,
@@ -88,6 +129,7 @@ function ServerLineRow({
           {t("connected_item_requires_review") || "Requires review"}
         </div>
       )}
+      <LineEvidence line={line} />
     </div>
   );
 }

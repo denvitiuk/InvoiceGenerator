@@ -53,54 +53,54 @@ h2 {
 .right { text-align: right; }
 
 /* Layout */
+/* Header: title block (number + company) and logo are flex items side by side,
+   so a logo can never cover the invoice number. */
 .header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 24px;
-    position: relative;
-    /* Push header content down only when a centered logo needs space */
-    padding-top: 0;
+    gap: 24px;
+    margin-bottom: 0;
 }
+.header .title-block {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+/* logo-right (default): number left, logo right */
+.header.logo-left { flex-direction: row-reverse; }
+.header.logo-left .title-block { text-align: right; }
+.header.logo-center {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 12px;
+}
+.header.logo-center .logo-wrap { justify-content: center; max-width: none; }
 .header-accent {
     height: 6px;
     border-radius: 0;
     background: linear-gradient(90deg, var(--g-from), var(--g-to));
-    /* Always keep enough vertical space so the logo (any alignment) can't overlap the accent line */
-    margin: calc(max(var(--logo-reserve, 0px), calc(var(--logo-h, 56px) + 12px)) - 16px) 0 18px 0;
+    margin: 14px 0 18px 0;
 }
 
 .accent { color: var(--c-accent); }
 .primary { color: var(--c-primary); }
 
-/* Logo: wrapper enables left/center/right alignment */
 .logo-wrap {
-    /* Overlay logo inside the header, aligned to the top so it matches the title level */
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 0;
-
+    flex: 0 0 auto;
     display: flex;
-    justify-content: var(--logo-justify, flex-start);
+    justify-content: var(--logo-justify, flex-end);
     align-items: flex-start;
-
-    pointer-events: none;
-}
-
-.logo-wrap .logo {
-    pointer-events: auto;
+    /* A wide logo shrinks instead of pushing the number off the page. */
+    max-width: 45%;
 }
 
 .logo {
-    /* Use requested logo height, but ensure it fits inside the reserved band */
     height: var(--logo-h, 56px);
     width: auto;
+    max-width: 100%;
     object-fit: contain;
     margin-top: 2px;
-
-    /* If reserve is 0 (left/right), keep max-height >= logo height so it doesn't collapse */
-    max-height: max(var(--logo-h, 56px), calc(var(--logo-reserve, 0px) - 12px));
 }
 
 .two-col { display: flex; gap: 24px; }

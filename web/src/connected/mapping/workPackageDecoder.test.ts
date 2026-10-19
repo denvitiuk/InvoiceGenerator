@@ -28,6 +28,23 @@ describe("decodeWorkPackage", () => {
     expect(decodeWorkPackage(raw).items.map((l) => l.invoiceWorkItemId)).toEqual(["from-items"]);
   });
 
+  it("decodes the review aids of a line (anonymous time per person, notes) and tolerates older backends without them", () => {
+    const raw = wire({
+      ...makeWorkPackage(),
+      items: [makeLine({ people: [{ minutes: 12, sessions: 2 }], notes: ["SHORT_WORK", "SEVERAL_SESSIONS"] })],
+    });
+    expect(decodeWorkPackage(raw).items[0]).toMatchObject({
+      people: [{ minutes: 12, sessions: 2 }],
+      notes: ["SHORT_WORK", "SEVERAL_SESSIONS"],
+    });
+    const old = wire({ ...makeWorkPackage(), items: [makeLine()] }) as { items: Record<string, unknown>[] };
+    delete old.items[0].people;
+    delete old.items[0].notes;
+    expect(decodeWorkPackage(old).items[0]).toMatchObject({ people: [], notes: [] });
+    expect(() => decodeWorkPackage(wire({ ...makeWorkPackage(), items: [makeLine({ notes: [1] as unknown as string[] })] })))
+      .toThrow(WorkPackageContractError);
+  });
+
   it("falls back to legacy `lines` when an older backend sends no `items`", () => {
     const { items: _items, ...legacy } = makeWorkPackage({ lines: [makeLine({ invoiceWorkItemId: "legacy-1" })] });
     const wp = decodeWorkPackage(wire(legacy));

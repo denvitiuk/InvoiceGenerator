@@ -1,3 +1,4 @@
+import { electronicInvoiceLabel } from "./einvoice";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -122,9 +123,13 @@ function previewLineDescription(item: LineItem, lang: Lang): string {
     ? details.workDateISO
     : null;
   const workerCount = Number.isFinite(details.workerCount) ? Math.max(0, Math.floor(details.workerCount as number)) : 0;
+  const workDates = Array.isArray(details.workDatesISO)
+    ? details.workDatesISO.filter((d): d is string => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d))
+    : [];
   return enrichLineDescription(
     {
       workDate,
+      workDates,
       description: item.description ?? "",
       workerCount,
       quantity: String(item.qty ?? 0),
@@ -274,7 +279,8 @@ function defaultTheme(): InvoiceTheme {
       gradientFrom: "#111827",
       gradientTo: "#0ea5e9",
     },
-    layout: { roundness: 16, logoAlign: "left", logoHeight: 56 },
+    // Logo right, invoice number left: the two never share a spot.
+    layout: { roundness: 16, logoAlign: "right", logoHeight: 56 },
   };
 }
 
@@ -282,6 +288,12 @@ function clampRoundness(v: unknown): number {
   const n = typeof v === "number" ? v : parseInt(String(v ?? ""), 10);
   if (!Number.isFinite(n)) return 16;
   return Math.max(0, Math.min(24, Math.floor(n)));
+}
+
+/** left | right | center - where the logo sits; the invoice number takes the other side. */
+export function logoPosition(theme?: InvoiceTheme): "left" | "right" | "center" {
+  const raw = String((theme as any)?.layout?.logoAlign ?? "right").toLowerCase();
+  return raw === "left" || raw === "center" ? raw : "right";
 }
 
 function themeToCssVars(theme?: InvoiceTheme): string {
@@ -300,14 +312,11 @@ function themeToCssVars(theme?: InvoiceTheme): string {
   // Cap logo height in the PDF to avoid layout breakage (user UI may allow bigger).
   const logoH = Number.isFinite(logoHeightNum) ? Math.max(16, Math.min(120, Math.floor(logoHeightNum))) : 56;
 
-  const logoAlign = String(layout?.logoAlign ?? "left").toLowerCase();
+  const logoAlign = logoPosition(theme);
   const logoJustify = logoAlign === "center" ? "center" : logoAlign === "right" ? "flex-end" : "flex-start";
-
-  // Reserve a top band for centered logo so it doesn't overlap the header title/content.
-  // Keep a hard upper bound so users can't "eat" the whole first page.
-  const logoReserve = logoAlign === "center"
-    ? Math.max(0, Math.min(140, logoH + 16))
-    : 0;
+  // The header lays logo and title out side by side (or stacked when centered),
+  // so nothing needs to be reserved for an overlay any more.
+  const logoReserve = 0;
 
   // Title ("Rechnung") scales with the same slider as the logo.
   // Default logo (56px) => ~24px title, bigger logo => bigger title (capped).
@@ -457,6 +466,8 @@ export function calcModel(data: InvoiceData, lang: Lang, baseUrl?: string) {
       detailed,
       dailyRows,
       qty: quantity,
+      // Printed in the document language (0,28 in German), like amounts.
+      qtyLabel: new Intl.NumberFormat(localeCode(lang), { maximumFractionDigits: 3 }).format(Number(quantity) || 0),
       unit: escapeHtml(lineUnitLabel(it, lang)),
       unitPrice: fmtMoney(it.unitPrice, data.currency, lang),
       vatRate: vatRateLabel,
@@ -478,6 +489,18 @@ export function calcModel(data: InvoiceData, lang: Lang, baseUrl?: string) {
   }
   const groupedRows: any[] = [];
   for (const [group, groupRows] of rowsByGroup) {
+    if (group && groupRows.length === 1) {
+      // A group with a single line (one task = one line, the usual backend case)
+      // gets no heading row: its title leads the line's description instead, so
+      // each position takes one table row and short invoices fit on one page.
+      const [row] = groupRows;
+      groupedRows.push({
+        ...row,
+        descriptionHtml: `<strong class="item-group-inline">${escapeHtml(group)}</strong>` +
+          (row.descriptionHtml ? `<br>${row.descriptionHtml}` : ""),
+      });
+      continue;
+    }
     if (group) {
       groupedRows.push({ isGroup: true, groupTitle: escapeHtml(group) });
     }
@@ -504,6 +527,22 @@ export function calcModel(data: InvoiceData, lang: Lang, baseUrl?: string) {
   const dueDateIso = typeof (data as any).dueDateISO === "string" ? String((data as any).dueDateISO) : "";
   const dueDate = /^\d{4}-\d{2}-\d{2}$/.test(dueDateIso) ? toDisplayDate(dueDateIso, lang) : "";
   const customerNumber = typeof (data as any).customerNumber === "string" ? escapeHtml((data as any).customerNumber.trim()) : "";
+
+  // BT-10..BT-13 references (connected mode), printed so the PDF shows every
+  // reference the e-invoice XML carries.
+  const refs = ((data as any).references ?? {}) as Record<string, unknown>;
+  const references = ([
+    ["leitwegId", "leitweg_id"],
+    ["buyerReference", "buyer_reference"],
+    ["orderReference", "order_reference"],
+    ["contractReference", "contract_reference"],
+    ["projectReference", "project_reference"],
+  ] as const)
+    .filter(([key]) => typeof refs[key] === "string" && String(refs[key]).trim())
+    .map(([key, labelKey]) => ({ labelKey, value: escapeHtml(String(refs[key]).trim()) }));
+  const electronic = (data as any).electronicInvoice;
+  const eInvoiceLabel = escapeHtml(electronicInvoiceLabel(electronic));
+  const eInvoiceEmbedded = !(data as any).draft && electronic?.format === "ZUGFERD_EN16931";
 
   const rawObject = String((data as any).object ?? "").trim();
   const object = rawObject === "-" || rawObject === "—" ? "" : escapeHtml(rawObject);
@@ -534,11 +573,15 @@ export function calcModel(data: InvoiceData, lang: Lang, baseUrl?: string) {
   return {
     language: lang,
     themeStyle: themeToCssVars((data as any).theme),
+    logoPosition: logoPosition((data as any).theme),
     number: escapeHtml(data.number ?? ""),
     draft: (data as any).draft === true,
     object,
     dueDate,
     customerNumber,
+    references,
+    eInvoiceLabel,
+    eInvoiceEmbedded,
     taxSummary,
     company: {
       name: escapeHtml(data.company?.name ?? ""),

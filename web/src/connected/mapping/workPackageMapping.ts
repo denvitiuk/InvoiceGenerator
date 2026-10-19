@@ -38,15 +38,21 @@ const PEOPLE_TOTAL_PHRASE: Record<Lang, (people: number, qty: string, unit: stri
   uk: (people, qty, unit) => `${people} ос. · ${qty} ${unit} разом`,
 };
 
-function formatDateLabel(isoDate: string, lang: Lang): string {
+/** A work day as printed on the line: weekday + day.month, e.g. "Do, 1.10" / "чт, 1.10" / "Thu, 1.10". */
+export function formatWorkDayLabel(isoDate: string, lang: Lang): string {
   const parsed = new Date(`${isoDate}T00:00:00Z`);
   if (Number.isNaN(parsed.getTime())) return isoDate;
-  return new Intl.DateTimeFormat(LOCALE_BY_LANG[lang] ?? "en-US", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(parsed);
+  const weekday = new Intl.DateTimeFormat(LOCALE_BY_LANG[lang] ?? "en-US", { weekday: "short", timeZone: "UTC" })
+    .format(parsed)
+    .replace(/\.$/, "");
+  return `${weekday}, ${parsed.getUTCDate()}.${String(parsed.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+/** The line's work days: the list the backend sends, else its single day (daily lines). */
+function lineWorkDays(line: WorkPackageLineDTO): string[] {
+  const days = (line.workDates ?? []).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d));
+  if (days.length > 0) return days;
+  return line.workDate ? [line.workDate] : [];
 }
 
 function formatQuantityLabel(value: string, lang: Lang): string {
@@ -61,7 +67,8 @@ function formatQuantityLabel(value: string, lang: Lang): string {
  */
 export function enrichLineDescription(line: WorkPackageLineDTO, lang: Lang): string {
   const parts: string[] = [];
-  if (line.workDate) parts.push(formatDateLabel(line.workDate, lang));
+  const days = lineWorkDays(line);
+  if (days.length > 0) parts.push(days.map((d) => formatWorkDayLabel(d, lang)).join("; "));
 
   const base = (line.description || "").trim();
   if (base) parts.push(base);

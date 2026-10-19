@@ -1,3 +1,4 @@
+import { normalizeElectronicInvoice, normalizeReferences } from "../../server/lib/einvoice";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { renderInvoiceHtml } from "../../server/lib/template";
 import {InvoiceData} from "@/types/invoice";
@@ -80,6 +81,10 @@ export function normalizeInvoice(data: Partial<InvoiceData> | undefined): Invoic
     customerNumber: typeof (d as any).customerNumber === "string" && (d as any).customerNumber.trim()
       ? String((d as any).customerNumber).trim().slice(0, 64)
       : undefined,
+    // Connected-invoice mode only: BT-10..BT-13 references and the e-invoice format
+    // (for a final ZUGFeRD invoice also the exact XML to embed).
+    references: normalizeReferences((d as any).references),
+    electronicInvoice: normalizeElectronicInvoice((d as any).electronicInvoice),
 
     company: {
       name: d.company?.name || "—",

@@ -19,18 +19,18 @@
     <div class="watermark draft-watermark">{{t "draft"}}</div>
   {{/if}}
 
-  <header class="header">
-    <div>
+  {{!-- Logo and title are separate flex items: they can never overlap.
+       logoPosition: right (default) | left | center (logo above the title). --}}
+  <header class="header logo-{{logoPosition}}">
+    <div class="title-block">
       <h1>{{#if number}}{{number}}{{else if draft}}{{t "draft"}}{{/if}}</h1>
       <div class="muted">{{company.name}}</div>
     </div>
-    <div class="logo-wrap">
-      {{#if company.logoPath}}
-        <img class="logo" src="{{company.logoPath}}" alt="logo" />
-      {{else if company.logoUrl}}
-        <img class="logo" src="{{company.logoUrl}}" alt="logo" />
-      {{/if}}
-    </div>
+    {{#if company.logoPath}}
+      <div class="logo-wrap"><img class="logo" src="{{company.logoPath}}" alt="logo" /></div>
+    {{else if company.logoUrl}}
+      <div class="logo-wrap"><img class="logo" src="{{company.logoUrl}}" alt="logo" /></div>
+    {{/if}}
   </header>
   <div class="header-accent"></div>
 
@@ -51,6 +51,7 @@
       {{#each client.addressLines}}<div>{{this}}</div>{{/each}}
       {{#if client.ustId}}<div>{{t "ustId"}}: {{client.ustId}}</div>{{/if}}
       {{#if customerNumber}}<div>{{t "customer_number"}}: {{customerNumber}}</div>{{/if}}
+      {{#each references}}<div>{{t this.labelKey}}: {{this.value}}</div>{{/each}}
     </div>
   </section>
 
@@ -74,6 +75,11 @@
       {{#if dueDate}}
         <div class="label" style="margin-top:6px;">{{t "due_date"}}</div>
         <div>{{dueDate}}</div>
+      {{/if}}
+      {{#if eInvoiceLabel}}
+        <div class="label" style="margin-top:6px;">{{t "e_invoice"}}</div>
+        <div class="e-invoice-format">{{eInvoiceLabel}}</div>
+        {{#if eInvoiceEmbedded}}<div class="small muted">{{t "e_invoice_attached"}}</div>{{/if}}
       {{/if}}
     </div>
   </section>
@@ -128,7 +134,7 @@
               <td></td>
               <td></td>
             {{else}}
-              <td class="right">{{this.qty}}</td>
+              <td class="right">{{this.qtyLabel}}</td>
               <td>{{this.unit}}</td>
               <td class="right">{{this.unitPrice}}</td>
               <td class="right">

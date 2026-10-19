@@ -1447,7 +1447,7 @@ export default function AppShell() {
               <label style={{ fontSize: 12, opacity: 0.85, display: "flex", alignItems: "center", gap: 6 }}>
                 {t("logo.section") || "Logo"}
                 <select
-                  value={((invoice as any)?.theme?.layout?.logoAlign || "left") as any}
+                  value={((invoice as any)?.theme?.layout?.logoAlign || "right") as any}
                   onChange={(e) => patchThemeLayout({ logoAlign: e.target.value })}
                   style={{ padding: "8px 10px", borderRadius: 12 }}
                   title={t("logo.align") || "Logo alignment"}
@@ -1474,7 +1474,7 @@ export default function AppShell() {
 
               <button
                 type="button"
-                onClick={() => patchThemeLayout({ logoAlign: "left", logoHeight: 56 })}
+                onClick={() => patchThemeLayout({ logoAlign: "right", logoHeight: 56 })}
                 style={{ padding: "10px 12px", borderRadius: 14, opacity: 0.85 }}
                 title={t("logo.reset") || "Reset"}
               >

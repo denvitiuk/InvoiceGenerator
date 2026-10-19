@@ -121,7 +121,10 @@ Desktop packages can be created with `electron:dist:mac` or `electron:dist:win`.
 The UI uses same-origin Next.js API routes:
 
 - `POST /api/preview` — returns compiled invoice HTML.
-- `POST /api/render?download=1` — returns a PDF download.
+- `POST /api/render?download=1` — returns a PDF download. For a final connected-mode
+  body with `electronicInvoice.format = "ZUGFERD_EN16931"` it returns a ZUGFeRD 2.5.2
+  (EN 16931) hybrid invoice: PDF/A-3 with the backend's exact XML embedded as
+  `factur-x.xml` (see "E-invoices" below).
 - `POST /api/renderDocx?download=1` — returns a DOCX download.
 - `POST /api/renderAll?download=1` — returns a ZIP containing invoices in multiple languages.
 - `POST /api/upload` — uploads a logo or another invoice image.
@@ -165,3 +168,30 @@ An alternative API host can be configured with `NEXT_PUBLIC_API_BASE`.
 ## License
 
 ISC
+
+## E-invoices (connected mode)
+
+The Zeiterfassung backend decides the format (ZUGFeRD 2.5.2 EN 16931, XRechnung 3.0.2
+CII or plain PDF), builds one e-invoice snapshot per invoice and derives both the render
+body and the CII XML from it. The generator never creates or edits invoice XML:
+
+- **ZUGFeRD** – a final body carries `electronicInvoice.xmlBase64` and `xmlSha256`. The
+  generator checks the digest (a mismatch is a `400`), renders the invoice with Chromium
+  and converts it with `server/lib/pdfa3.ts` into PDF/A-3 (conformance B): XMP with
+  `pdfaid:part=3`, the Factur-X PDF/A extension schema and `fx:` properties
+  (`INVOICE`, `factur-x.xml`, `1.0`, `EN 16931`), sRGB OutputIntent
+  (`server/assets/icc/sRGB2014.icc`, ICC), trailer `/ID`, and `factur-x.xml` as document
+  level associated file (`/AF`, `EmbeddedFiles`, MIME `text/xml`, `Params/ModDate`,
+  `AFRelationship /Alternative`, as required in Germany). File name `zugferd-<number>.pdf`.
+- **XRechnung** – the body is the visual copy; the XML stays in the backend
+  (`GET /invoicing/invoices/{id}/e-invoice/xrechnung.xml`).
+- Every connected body can carry `references` (Leitweg-ID, buyer/order/contract/project
+  reference); they are printed in the recipient box. The e-invoice format is printed
+  next to the dates.
+
+The backend validates every artifact before archiving it (veraPDF PDF/A-3B, Factur-X
+attachment structure, KoSIT validator with the official XRechnung 2026-08-31
+configuration and the FeRD ZUGFeRD 2.5.2 EN16931 XSD/Schematron, PDF/XML consistency).
+`src/connected/pdf/zugferdRender.test.ts` renders real backend bodies; with
+`EINVOICE_PDF_OUT=<file>` it writes the PDF/A-3 for the backend's veraPDF test.
+

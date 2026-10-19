@@ -50,5 +50,12 @@
   "tax_category_SMALL_BUSINESS": "Малий підприємець (§ 19 UStG)",
   "draft": "ЧЕРНЕТКА",
   "draft_notice": "Чернетка – ще не дійсний рахунок; номер присвоюється під час виставлення",
-  "no_items": "Немає позицій для виставлення"
+  "no_items": "Немає позицій для виставлення",
+  "buyer_reference": "Ваше посилання",
+  "leitweg_id": "Leitweg-ID",
+  "order_reference": "Номер замовлення",
+  "contract_reference": "Номер договору",
+  "project_reference": "Номер проєкту",
+  "e_invoice": "Електронний рахунок",
+  "e_invoice_attached": "Структуровані дані рахунку (factur-x.xml) вбудовано в цей PDF-файл."
 }

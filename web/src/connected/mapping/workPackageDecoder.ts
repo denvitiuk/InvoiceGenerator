@@ -131,7 +131,41 @@ function readLine(r: Reader, raw: unknown, path: string): WorkPackageLineDTO {
     isExcluded: r.bool(o, "isExcluded", path),
     isOverridden: r.bool(o, "isOverridden", path),
     requiresReview: r.bool(o, "requiresReview", path),
+    // Review aids, not part of the invoice: optional (older backends) and never guessed.
+    people: readPeople(r, o.people, path),
+    notes: readNotes(r, o.notes, path),
+    workDates: readWorkDates(r, o.workDates, path),
   };
+}
+
+function readPeople(r: Reader, raw: unknown, path: string): WorkPackageLineDTO["people"] {
+  if (raw === undefined || raw === null) return [];
+  if (!Array.isArray(raw)) {
+    r.problems.push(`${path}people: expected array`);
+    return [];
+  }
+  return raw.map((p, i) => {
+    const o = r.isObj(p) ? p : {};
+    return { minutes: r.int(o, "minutes", `${path}people[${i}].`), sessions: r.int(o, "sessions", `${path}people[${i}].`) };
+  });
+}
+
+function readWorkDates(r: Reader, raw: unknown, path: string): string[] {
+  if (raw === undefined || raw === null) return [];
+  if (!Array.isArray(raw) || raw.some((d) => typeof d !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(d))) {
+    r.problems.push(`${path}workDates: expected array of ISO dates`);
+    return [];
+  }
+  return raw as string[];
+}
+
+function readNotes(r: Reader, raw: unknown, path: string): string[] {
+  if (raw === undefined || raw === null) return [];
+  if (!Array.isArray(raw) || raw.some((n) => typeof n !== "string")) {
+    r.problems.push(`${path}notes: expected array of strings`);
+    return [];
+  }
+  return raw as string[];
 }
 
 function readTotals(r: Reader, raw: unknown): InvoiceTotalsDTO {

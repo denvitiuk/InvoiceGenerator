@@ -69,5 +69,12 @@
   "tax_category_SMALL_BUSINESS": "Small business (§ 19 UStG)",
   "draft": "DRAFT",
   "draft_notice": "Draft – not a valid invoice yet; the number is assigned on issue",
-  "no_items": "No billable items"
+  "no_items": "No billable items",
+  "buyer_reference": "Your reference",
+  "leitweg_id": "Leitweg-ID",
+  "order_reference": "Purchase order",
+  "contract_reference": "Contract",
+  "project_reference": "Project",
+  "e_invoice": "E-invoice",
+  "e_invoice_attached": "The structured invoice data (factur-x.xml) is embedded in this PDF file."
 }

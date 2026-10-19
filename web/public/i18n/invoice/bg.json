@@ -50,5 +50,12 @@
   "tax_category_SMALL_BUSINESS": "Малък бизнес (§ 19 UStG)",
   "draft": "ЧЕРНОВА",
   "draft_notice": "Чернова – все още не е валидна фактура; номерът се присвоява при издаване",
-  "no_items": "Няма позиции за фактуриране"
+  "no_items": "Няма позиции за фактуриране",
+  "buyer_reference": "Ваш референтен номер",
+  "leitweg_id": "Leitweg-ID",
+  "order_reference": "Номер на поръчка",
+  "contract_reference": "Номер на договор",
+  "project_reference": "Номер на проект",
+  "e_invoice": "Електронна фактура",
+  "e_invoice_attached": "Структурираните данни на фактурата (factur-x.xml) са вградени в този PDF файл."
 }
