@@ -1,4 +1,5 @@
 import { electronicInvoiceLabel } from "./einvoice";
+import { giroCodeSvg } from "./girocode";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -523,6 +524,23 @@ export function calcModel(data: InvoiceData, lang: Lang, baseUrl?: string) {
 
   const taxSummary = connectedTax ? connectedTaxModel(lineTaxes, data.currency, lang) : null;
 
+  // GiroCode (EPC QR) next to the bank details: issued invoices only - a draft's number
+  // is not final and a draft must never look payable.
+  const rawNumber = String(data.number ?? "").trim();
+  const rawCustomerNumber = typeof (data as any).customerNumber === "string" ? String((data as any).customerNumber).trim() : "";
+  const remittance = (lang === "de" ? `Rechnung ${rawNumber}` : `Invoice ${rawNumber}`)
+    + (rawCustomerNumber ? (lang === "de" ? ` Kd.-Nr. ${rawCustomerNumber}` : ` Customer ${rawCustomerNumber}`) : "");
+  const girocode = (data as any).draft === true || !rawNumber || !data.company?.iban
+    ? null
+    : giroCodeSvg({
+        name: String(data.company?.name ?? ""),
+        iban: String(data.company.iban),
+        bic: data.company?.bic ? String(data.company.bic) : undefined,
+        currency: data.currency,
+        amountCents: taxSummary ? taxSummary._grossCents : Math.round(grand * 100),
+        remittance,
+      });
+
   const issueDate = toDisplayDate(data.issueDateISO, lang);
   const dueDateIso = typeof (data as any).dueDateISO === "string" ? String((data as any).dueDateISO) : "";
   const dueDate = /^\d{4}-\d{2}-\d{2}$/.test(dueDateIso) ? toDisplayDate(dueDateIso, lang) : "";
@@ -611,6 +629,7 @@ export function calcModel(data: InvoiceData, lang: Lang, baseUrl?: string) {
       : null,
     paymentTerms,
     showPaymentBox: Boolean(paymentTerms) || Boolean(data.company?.iban) || Boolean(data.company?.bic) || Boolean(data.company?.bankName),
+    girocode,
     itemRows: groupedRows,
     subtotal: fmtMoney(subtotalNet, data.currency, lang),
     vatBlocks: data.kleinunternehmer ? [] : vatBlocks,

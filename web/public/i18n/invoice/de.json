@@ -77,5 +77,6 @@
   "contract_reference": "Vertragsnummer",
   "project_reference": "Projektnummer",
   "e_invoice": "E-Rechnung",
-  "e_invoice_attached": "Die strukturierten Rechnungsdaten (factur-x.xml) sind in diese PDF-Datei eingebettet."
+  "e_invoice_attached": "Die strukturierten Rechnungsdaten (factur-x.xml) sind in diese PDF-Datei eingebettet.",
+  "girocode_hint": "Mit der Banking-App scannen (GiroCode)"
 }

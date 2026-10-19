@@ -195,7 +195,8 @@
   {{/if}}
 
   {{#if showPaymentBox}}
-    <div style="margin-top:12px; max-width: 60%;">
+    <div class="payment-box">
+    <div class="payment-details">
       {{#if paymentTerms}}
         <div class="label">{{t "paymentTerms"}}</div>
         <div class="payment-terms">{{paymentTerms}}</div>
@@ -207,6 +208,14 @@
           {{#if company.bankName}}<div><span class="label">{{t "bank"}}</span> {{company.bankName}}</div>{{/if}}
         </div>
       {{/if}}
+    </div>
+    {{#if girocode}}
+      {{!-- GiroCode (EPC QR): generated SVG from server/lib/girocode.ts, never user input --}}
+      <div class="girocode">
+        {{{girocode}}}
+        <div class="girocode-hint">{{t "girocode_hint"}}</div>
+      </div>
+    {{/if}}
     </div>
   {{/if}}
 

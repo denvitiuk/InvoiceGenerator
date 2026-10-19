@@ -238,3 +238,10 @@ h2, .header { break-after: avoid; }
     color: #b91c1c;
     font-weight: 600;
 }
+
+/* Payment details + GiroCode (EPC QR) side by side; the code keeps a fixed print size. */
+.payment-box { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-top: 12px; page-break-inside: avoid; }
+.payment-details { max-width: 60%; }
+.girocode { width: 32mm; text-align: center; flex: 0 0 auto; }
+.girocode svg { width: 32mm; height: 32mm; display: block; }
+.girocode-hint { font-size: 8px; color: #555; margin-top: 2px; line-height: 1.2; }

@@ -57,5 +57,6 @@
   "contract_reference": "Номер на договор",
   "project_reference": "Номер на проект",
   "e_invoice": "Електронна фактура",
-  "e_invoice_attached": "Структурираните данни на фактурата (factur-x.xml) са вградени в този PDF файл."
+  "e_invoice_attached": "Структурираните данни на фактурата (factur-x.xml) са вградени в този PDF файл.",
+  "girocode_hint": "Сканирайте с банковото приложение (GiroCode)"
 }

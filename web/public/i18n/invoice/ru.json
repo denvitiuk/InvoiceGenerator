@@ -55,5 +55,6 @@
   "contract_reference": "Номер договора",
   "project_reference": "Номер проекта",
   "e_invoice": "Электронный счёт",
-  "e_invoice_attached": "Структурированные данные счёта (factur-x.xml) встроены в этот PDF-файл."
+  "e_invoice_attached": "Структурированные данные счёта (factur-x.xml) встроены в этот PDF-файл.",
+  "girocode_hint": "Отсканируйте в банковском приложении (GiroCode)"
 }

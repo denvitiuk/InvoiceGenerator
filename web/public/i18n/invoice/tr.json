@@ -82,5 +82,6 @@
   "contract_reference": "Sözleşme numarası",
   "project_reference": "Proje numarası",
   "e_invoice": "E-fatura",
-  "e_invoice_attached": "Yapılandırılmış fatura verileri (factur-x.xml) bu PDF dosyasına gömülüdür."
+  "e_invoice_attached": "Yapılandırılmış fatura verileri (factur-x.xml) bu PDF dosyasına gömülüdür.",
+  "girocode_hint": "Banka uygulamanızla tarayın (GiroCode)"
 }

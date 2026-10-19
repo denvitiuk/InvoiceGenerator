@@ -57,5 +57,6 @@
   "contract_reference": "Номер договору",
   "project_reference": "Номер проєкту",
   "e_invoice": "Електронний рахунок",
-  "e_invoice_attached": "Структуровані дані рахунку (factur-x.xml) вбудовано в цей PDF-файл."
+  "e_invoice_attached": "Структуровані дані рахунку (factur-x.xml) вбудовано в цей PDF-файл.",
+  "girocode_hint": "Відскануйте в банківському застосунку (GiroCode)"
 }

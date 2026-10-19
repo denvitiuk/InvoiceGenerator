@@ -76,5 +76,6 @@
   "contract_reference": "Contract",
   "project_reference": "Project",
   "e_invoice": "E-invoice",
-  "e_invoice_attached": "The structured invoice data (factur-x.xml) is embedded in this PDF file."
+  "e_invoice_attached": "The structured invoice data (factur-x.xml) is embedded in this PDF file.",
+  "girocode_hint": "Scan with your banking app (GiroCode)"
 }
